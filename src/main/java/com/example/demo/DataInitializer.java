@@ -17,21 +17,18 @@
 	    	this.userService =  userService;
 	        this.adminService = adminService;
 	    }
-	
-	    @Override
-	    public void run(String... args) throws Exception {
-	    	 // 관리자가 이미 등록되어 있는지 확인
-	        if (adminService.getbyemail("admin@example.com") == null) {
-	            // 관리자 객체 생성
-	            Admin admin = new Admin("admin", "adminpw", "Admin", "admin@example.com");
-	            // 관리자 등록
-	            adminService.signup(admin);
-	        }
 
-	        // 사용자가 이미 등록되어 있는지 확인
-	        if (!userService.existsByUserid("12")) {
-	            Member newMember = new Member("12", "12", "12", "0", "0");
-	            userService.signup(newMember);
-	        }	        	       
-	    }	    	    
+		@Override
+		public void run(String... args) {
+			if (adminService.getbyemail("admin@example.com") == null) {
+				Admin admin = new Admin("admin", "Admin#12345", "Admin", "admin@example.com");
+				adminService.signup(admin);
+			}
+
+			if (!userService.existsByUserid("12")) {
+				Member newMember = new Member("12", "Passw0rd!", "테스트유저", "user12@example.com", "서울");
+				userService.signup(newMember);
+			}
+		}
+
 	}

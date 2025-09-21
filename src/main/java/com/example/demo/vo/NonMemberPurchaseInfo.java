@@ -6,15 +6,18 @@ import lombok.Data;
 
 @Data
 public class NonMemberPurchaseInfo {
-	private String orderNumber;
-    private String email;
-    private String phonenum;
-    private String productid;  // 제품 ID (문자열로 처리)
-    private String productname;
-    private String sizecolor; // 옵션 (사이즈, 색상 등)
-    private int price;
-    private LocalDateTime requestDate;
-    private String guestName;  // 추가된 필드
-    private String guestAddress;
-    private int quantity; // 추가된 필드
+    private String orderNumber;   // order_number
+    private int productid;        // product_id
+    private int quantity;         // quantity
+    private String sizecolor;     // optionin
+    private LocalDateTime requestDate; // created_at
+    private String guestName;     // guest_name
+    private String email;         // guest_email
+    private String phonenum;      // guest_phone
+    private String guestAddress;  // guest_address
+
+    // ⚠️ DB에는 없지만 서비스/컨트롤러에서 사용하는 임시 필드
+    private String productids;    // 장바구니 여러 상품 처리용
+    private String productname;   // UI 표시용
+    private int price;            // 결제 금액 (PaymentRecords와 매핑 필요)
 }

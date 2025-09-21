@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.util.UUID;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -33,8 +34,10 @@ public class CartController {
 
 	@PostMapping("/Cart/add")
 	public String addCartItem(HttpSession session, Model model, @RequestParam int productid, @RequestParam String name,
-			@RequestParam String color, @RequestParam String size, @RequestParam int count, @RequestParam int price) {
+							  @RequestParam String color, @RequestParam String size, @RequestParam int count, @RequestParam int price) {
 		String userid = SecurityUtils.getCurrentUserId();
+		count = Math.max(1, Math.min(99, count));
+
 		boolean ishave = cartservice.checking(userid, productid, color, size);
 		if (!ishave) {
 			cartservice.AddCartList(userid, productid, name, color, size, count, price);
@@ -42,119 +45,111 @@ public class CartController {
 			int id = cartservice.GetCartId(userid, productid, name, color, size);
 			cartservice.ModifyCartList(id, userid, productid, name, color, size, color, size, count, price);
 		}
-		// return "redirect:/product/detail?id=" + productid;
 		return "redirect:/Cart/List";
 	}
 
 	@GetMapping("/Cart/List")
 	public String GetCartList(HttpSession session, Model model) {
-		String userid = SecurityUtils.getCurrentUserId();	    
-	    
-	    // 장바구니 목록 가져오기
-	    List<Cart> carts = cartservice.GetCartList(userid); // 서비스 메서드 호출
-	    
-	    // 장바구니 목록을 모델에 추가
-	    model.addAttribute("userid", userid);
-	    model.addAttribute("carts", carts);
-	    
-	    // 뷰 이름 반환
-	    return "cart/cartmain";
+		String userid = SecurityUtils.getCurrentUserId();
+		List<Cart> carts = cartservice.GetCartList(userid);
+		model.addAttribute("userid", userid);
+		model.addAttribute("carts", carts);
+		return "cart/cartmain";
 	}
 
 	@PostMapping("/Cart/Modify")
 	public String ModifyCartList(HttpSession session, @RequestParam int id, @RequestParam String productname,
-			@RequestParam int productid, @RequestParam String a_color, @RequestParam String a_size,
-			@RequestParam String color, @RequestParam String size, @RequestParam int count, @RequestParam int price) {
-		// a_붙은게 수정전 값 그냥이 수정한 값
-		String userid = SecurityUtils.getCurrentUserId();	   
+								 @RequestParam int productid, @RequestParam String a_color, @RequestParam String a_size,
+								 @RequestParam String color, @RequestParam String size, @RequestParam int count, @RequestParam int price) {
+		String userid = SecurityUtils.getCurrentUserId();
+		count = Math.max(1, Math.min(99, count));
 		cartservice.ModifyCartList(id, userid, productid, productname, a_color, a_size, color, size, count, price);
-
-		return "redirect:/Cart/List";// Ajax 요청에 대한 응답
+		return "redirect:/Cart/List";
 	}
 
 	@PostMapping("/Cart/Delete")
 	public String DeleteCartList(HttpSession session, @RequestParam int id, @RequestParam int productid,
-			@RequestParam String color, @RequestParam String size) {
-		String userid = SecurityUtils.getCurrentUserId();	   
+								 @RequestParam String color, @RequestParam String size) {
+		String userid = SecurityUtils.getCurrentUserId();
 		cartservice.DeleteCartList(id, userid, productid, color, size);
-		return "redirect:/Cart/List"; // Ajax 요청에 대한 응답
+		return "redirect:/Cart/List";
+	}
+
+	private String getOrCreateCartToken(HttpServletRequest request, HttpServletResponse response) {
+		if (request.getCookies() != null) {
+			for (Cookie c : request.getCookies()) {
+				if ("CART_TOKEN".equals(c.getName())) {
+					String v = c.getValue();
+					if (v != null && !v.isBlank()) {   // ← 값 가드
+						return v;
+					}
+				}
+			}
+		}
+		String token = UUID.randomUUID().toString();
+		Cookie cookie = new Cookie("CART_TOKEN", token);
+		cookie.setPath("/");
+		cookie.setMaxAge(60 * 60 * 24); // 1일 (원하시면 30일로 늘려도 됩니다)
+		cookie.setHttpOnly(true);
+		// cookie.setSecure(true); // HTTPS 환경에서 활성화
+		response.addCookie(cookie);
+		// SameSite 보강(서블릿 쿠키 속성에 없으므로 헤더로 추가)
+		response.addHeader("Set-Cookie",
+				"CART_TOKEN=" + token + "; Max-Age=" + 60 * 60 * 24 + "; Path=/; HttpOnly; SameSite=Lax");
+		return token;
 	}
 
 	@PostMapping("/Temporarily/Cart/add")
 	public String addCartTemp(HttpSession session, HttpServletRequest request, HttpServletResponse response,
-			Model model, @RequestParam int productid, @RequestParam String name, @RequestParam String color,
-			@RequestParam String size, @RequestParam int count, @RequestParam int price) {
-		String sessionId = session.getId();
-		Cookie sessionCookie = new Cookie("SESSIONID", sessionId);
-		sessionCookie.setMaxAge(86400); // 1 day
-		sessionCookie.setPath("/");
-		response.addCookie(sessionCookie);
+							  Model model, @RequestParam int productid, @RequestParam String name, @RequestParam String color,
+							  @RequestParam String size, @RequestParam int count, @RequestParam int price) {
+
+		String token = getOrCreateCartToken(request, response);
 
 		List<CartItem> cartItems = (List<CartItem>) session.getAttribute("cartItems");
 		if (cartItems == null) {
 			try {
-				try {
-					cartItems = SessionFileUtil.loadSession(sessionId);
-				} catch (NoSuchAlgorithmException e) {
-					e.printStackTrace();
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
+				cartItems = SessionFileUtil.loadSession(token);
+			} catch (IOException | NoSuchAlgorithmException e) {
 				cartItems = new ArrayList<>();
 			}
 			session.setAttribute("cartItems", cartItems);
 		}
 
+		count = Math.max(1, Math.min(99, count));
 		boolean updated = false;
 		for (CartItem item : cartItems) {
 			if (item.getProductid() == productid && item.getName().equals(name) && item.getColor().equals(color)
 					&& item.getSize().equals(size)) {
-				item.setCount(item.getCount() + count);
+				item.setCount(Math.max(1, Math.min(99, item.getCount() + count)));
 				updated = true;
 				break;
 			}
 		}
-
 		if (!updated) {
 			cartItems.add(new CartItem(productid, name, color, size, count, price));
 		}
 
 		try {
-			SessionFileUtil.saveSession(sessionId, cartItems);
-		} catch (Exception e) {
-			e.printStackTrace();
+			SessionFileUtil.saveSession(token, cartItems);
+		} catch (Exception ignored) {
 		}
 
 		model.addAttribute("carts", cartItems);
-
 		return "redirect:/temp/Cart";
 	}
 
-	@GetMapping("/temp/Cart")
-	public String TempCartList(HttpSession session, HttpServletRequest request, Model model) {
-		// 쿠키에서 세션 ID 가져오기
-		String sessionId = session.getId();
-		Cookie[] cookies = request.getCookies();
-		if (cookies != null) {
-			for (Cookie cookie : cookies) {
-				if (cookie.getName().equals("SESSIONID")) {
-					sessionId = cookie.getValue();
-					break;
-				}
-			}
-		}
 
-		// 세션에서 장바구니 항목 가져오기
+	@GetMapping("/temp/Cart")
+	public String TempCartList(HttpSession session, HttpServletRequest request, HttpServletResponse response,
+							   Model model) {
+		String token = getOrCreateCartToken(request, response);
+
 		List<CartItem> cartItems = (List<CartItem>) session.getAttribute("cartItems");
 		if (cartItems == null) {
 			try {
-				try {
-					cartItems = SessionFileUtil.loadSession(sessionId);
-				} catch (NoSuchAlgorithmException e) {
-					e.printStackTrace();
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
+				cartItems = SessionFileUtil.loadSession(token);
+			} catch (IOException | NoSuchAlgorithmException e) {
 				cartItems = new ArrayList<>();
 			}
 			session.setAttribute("cartItems", cartItems);
@@ -165,72 +160,67 @@ public class CartController {
 	}
 
 	@PostMapping("/Temporarily/Cart/Modify")
-    public RedirectView modifyCartItem(@RequestParam int productid, @RequestParam String color,
-                                        @RequestParam String size, @RequestParam int count, @RequestParam int price,
-                                        HttpSession session) {
+	public RedirectView modifyCartItem(@RequestParam int productid, @RequestParam String color,
+									   @RequestParam String size, @RequestParam int count, @RequestParam int price,
+									   HttpSession session, HttpServletRequest request, HttpServletResponse response) {
 
-        String sessionId = session.getId();
-        List<CartItem> cartItems = (List<CartItem>) session.getAttribute("cartItems");
+		String token = getOrCreateCartToken(request, response);
 
-        if (cartItems == null) {
-            try {
-                cartItems = SessionFileUtil.loadSession(sessionId);
-            } catch (IOException | NoSuchAlgorithmException e) {
-                e.printStackTrace();
-                cartItems = new ArrayList<>();
-            }
-            session.setAttribute("cartItems", cartItems);
-        }
+		List<CartItem> cartItems = (List<CartItem>) session.getAttribute("cartItems");
+		if (cartItems == null) {
+			try {
+				cartItems = SessionFileUtil.loadSession(token);
+			} catch (IOException | NoSuchAlgorithmException e) {
+				cartItems = new ArrayList<>();
+			}
+			session.setAttribute("cartItems", cartItems);
+		}
 
-        boolean updated = false;
-        for (CartItem item : cartItems) {
-            if (item.getProductid() == productid && item.getColor().equals(color) && item.getSize().equals(size)) {
-                item.setCount(count);
-                updated = true;
-                break;
-            }
-        }
+		count = Math.max(1, Math.min(99, count));
+		boolean updated = false;
+		for (CartItem item : cartItems) {
+			if (item.getProductid() == productid && item.getColor().equals(color) && item.getSize().equals(size)) {
+				item.setCount(count);
+				updated = true;
+				break;
+			}
+		}
+		if (!updated) {
+			cartItems.add(new CartItem(productid, "Product Name", color, size, count, price));
+		}
 
-        if (!updated) {
-            cartItems.add(new CartItem(productid, "Product Name", color, size, count, price));
-        }
+		try {
+			SessionFileUtil.saveSession(token, cartItems);
+		} catch (IOException ignored) {
+		}
 
-        try {
-            SessionFileUtil.saveSession(sessionId, cartItems);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+		return new RedirectView("/temp/Cart");
+	}
 
-        // 리다이렉션 처리
-        return new RedirectView("/temp/Cart");
-    }
+	@PostMapping("/Temporarily/Cart/Delete")
+	public RedirectView deleteCartItem(@RequestParam int productid, @RequestParam String color,
+									   @RequestParam String size, HttpSession session, HttpServletRequest request, HttpServletResponse response) {
 
-    @PostMapping("/Temporarily/Cart/Delete")
-    public RedirectView deleteCartItem(@RequestParam int productid, @RequestParam String color,
-                                        @RequestParam String size, HttpSession session) {
+		String token = getOrCreateCartToken(request, response);
 
-        String sessionId = session.getId();
-        List<CartItem> cartItems = (List<CartItem>) session.getAttribute("cartItems");
+		List<CartItem> cartItems = (List<CartItem>) session.getAttribute("cartItems");
+		if (cartItems == null) {
+			try {
+				cartItems = SessionFileUtil.loadSession(token);
+			} catch (IOException | NoSuchAlgorithmException e) {
+				cartItems = new ArrayList<>();
+			}
+			session.setAttribute("cartItems", cartItems);
+		}
 
-        if (cartItems == null) {
-            try {
-                cartItems = SessionFileUtil.loadSession(sessionId);
-            } catch (IOException | NoSuchAlgorithmException e) {
-                e.printStackTrace();
-                cartItems = new ArrayList<>();
-            }
-            session.setAttribute("cartItems", cartItems);
-        }
+		cartItems.removeIf(item -> item.getProductid() == productid && item.getColor().equals(color)
+				&& item.getSize().equals(size));
 
-        cartItems.removeIf(item -> item.getProductid() == productid && item.getColor().equals(color) && item.getSize().equals(size));
+		try {
+			SessionFileUtil.saveSession(token, cartItems);
+		} catch (IOException ignored) {
+		}
 
-        try {
-            SessionFileUtil.saveSession(sessionId, cartItems);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        // 리다이렉션 처리
-        return new RedirectView("/temp/Cart");
-    }
+		return new RedirectView("/temp/Cart");
+	}
 }

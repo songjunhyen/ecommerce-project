@@ -1,58 +1,28 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-    pageEncoding="UTF-8"%>
-<!DOCTYPE html>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+
 <style>
-        #siteFooter {
-            background-color: #333;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            position: fixed; /* footer를 화면 하단에 고정 */
-            bottom: 0;
-            width: 100%;
-            height: 60px; /* footer의 높이 설정 */
-        }
-
-        #siteFooter ul {
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-
-        #siteFooter li {
-            display: inline;
-            margin: 0 10px;
-        }
-
-        #siteFooter a {
-            color: white;
-            text-decoration: none;
-        }
-
-        #siteFooter a:hover {
-            text-decoration: underline;
-        }
-
-        #footerText {
-            margin-top: 10px;
-        }
+  /* ===== Footer Scoped Styles ===== */
+  #siteFooter { background:#111; color:#ddd; margin-top:60px; }
+  #siteFooter .inner { max-width:1200px; margin:0 auto; padding:28px 16px; }
+  #siteFooter .links { display:flex; flex-wrap:wrap; gap:12px 18px; margin-bottom:10px; }
+  #siteFooter a { color:#ddd; text-decoration:none; }
+  #siteFooter a:hover { color:#fff; text-decoration:underline; }
+  #siteFooter .copy { color:#aaa; font-size:12px; }
 </style>
 
-<!-- Footer -->
 <footer id="siteFooter">
-    <ul>
-        <li><a href="#">소개</a></li>
-        <li>|</li>
-        <li><a href="#">개인정보 처리 방침</a></li>
-        <li>|</li>
-        <li><a href="#">이용약관</a></li>
-        <li>|</li>
-        <li><a href="#">입점/제휴 문의</a></li>
-        <li>|</li>
-        <li><a href="#">고객지원</a></li>
-    </ul>
-    <div id="footerText">상호명 고객센터 연락처 안내문 등</div>
+  <div class="inner">
+    <div class="links">
+      <a href="#">소개</a>
+      <span>|</span>
+      <a href="#">개인정보 처리 방침</a>
+      <span>|</span>
+      <a href="#">이용약관</a>
+      <span>|</span>
+      <a href="#">입점/제휴 문의</a>
+      <span>|</span>
+      <a href="#">고객지원</a>
+    </div>
+    <div class="copy">© 2025 E-커머스 프로젝트 · 고객센터 02-0000-0000</div>
+  </div>
 </footer>
-
-</body>
-</html>

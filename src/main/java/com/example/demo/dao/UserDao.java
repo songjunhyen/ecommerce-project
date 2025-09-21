@@ -1,85 +1,98 @@
 package com.example.demo.dao;
 
 import java.util.List;
-
-import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
-
+import org.apache.ibatis.annotations.*;
 import com.example.demo.vo.Member;
 
 @Mapper
 public interface UserDao {
+
+	// ✅ regDate는 DB DEFAULT 사용 (컬럼/값에서 제외)
 	@Insert("""
-			INSERT INTO `user` (regDate, userid, userpw, `name`, email, class, address)
-			VALUES (#{regdate}, #{userid}, #{userpw}, #{name}, #{email}, #{memberClass}, #{address})
-			""")
+        INSERT INTO `user` (userid, userpw, `name`, email, `class`, address)
+        VALUES (#{userid}, #{userpw}, #{name}, #{email}, #{memberClass}, #{address})
+    """)
 	void signup(Member member);
 
 	@Update("""
-			UPDATE `user`
-			SET userpw = #{pw}, `name` = #{name}, email = #{email}, address = #{address}
-			WHERE userid = #{userid}
-			""")
-	void modify(String userid, String pw, String name, String email, String address);
+        UPDATE `user`
+        SET userpw = #{pw}, `name` = #{name}, email = #{email}, address = #{address}
+        WHERE userid = #{userid}
+    """)
+	void modify(@Param("userid") String userid,
+				@Param("pw") String pw,
+				@Param("name") String name,
+				@Param("email") String email,
+				@Param("address") String address);
 
 	@Delete("""
-			DELETE FROM `user`
-			WHERE id = #{id}
-			""")
-	void signout(int id);
+        DELETE FROM `user`
+        WHERE id = #{id}
+    """)
+	void signout(@Param("id") int id);
 
-	@Select("SELECT * FROM `user` WHERE userid = #{userid}")
-	Member findByUserid(String userid);
+	// ✅ memberClass ← `class` 매핑 보장
+	@Select("SELECT id, regDate, userid, userpw, `name`, email, address, `class` FROM `user` WHERE userid = #{userid}")
+	@Results(id="MemberMap", value={
+			@Result(property="id",          column="id"),
+			@Result(property="regDate",     column="regDate"),
+			@Result(property="userid",      column="userid"),
+			@Result(property="userpw",      column="userpw"),
+			@Result(property="name",        column="name"),
+			@Result(property="email",       column="email"),
+			@Result(property="address",     column="address"),
+			@Result(property="memberClass", column="class")
+	})
+	Member findByUserid(@Param("userid") String userid);
 
+	@Select("SELECT COUNT(*) FROM `user` WHERE userid = #{userid}")
+	int checkid(@Param("userid") String userid);
+
+	// ⚠️ 평문 비교는 지양(PasswordEncoder로 검증 권장). 필요 시 임시 사용 가능
 	@Select("""
-			SELECT COUNT(*) FROM `user` WHERE userid = #{userid}
-			""")
-	int checkid(String userid);
+        SELECT COUNT(*) FROM `user` WHERE userid = #{userid} AND userpw = #{pw}
+    """)
+	int checkpw(@Param("userid") String userid, @Param("pw") String pw);
 
-	@Select("""
-			SELECT COUNT(*) FROM `user` WHERE userid = #{userid} AND userpw = #{pw}
-			""")
-	int checkpw(String userid, String pw);
+	@Select("SELECT id FROM `user` WHERE userid = #{userid}")
+	int getid(@Param("userid") String userid);
 
-	@Select("""
-			SELECT id FROM `user` WHERE userid = #{userid}
-			""")
-	int getid(String userid);
+	@Select("SELECT COUNT(*) FROM `user` WHERE userid = #{userid}")
+	int countByUserid(@Param("userid") String userid);
 
-	@Select("""
-			SELECT COUNT(*) FROM `user` WHERE userid = #{userid}
-			""")
-	int countByUserid(String userid);
+	@Select("SELECT id, regDate, userid, userpw, `name`, email, address, `class` FROM `user` WHERE email = #{email}")
+	@ResultMap("MemberMap")
+	Member findByUserEmail(@Param("email") String email);
 
-	@Select("SELECT * FROM `user` WHERE email = #{email}")
-	Member findByUserEmail(String email);
-
+	// ✅ UPSERT (MySQL 8.0.20+ 에서 VALUES() 대체: alias 사용)
 	@Insert("""
-			INSERT INTO `user` (regDate, userid, userpw, `name`, email, class, address)
-			VALUES (#{regdate}, #{userid}, #{userpw}, #{name}, #{email}, #{memberClass}, #{address})
-			ON DUPLICATE KEY UPDATE
-			userpw = VALUES(userpw),
-			`name` = VALUES(`name`),
-			email = VALUES(email),
-			address = VALUES(address)
-			""")
+        INSERT INTO `user` (userid, userpw, `name`, email, `class`, address)
+        VALUES (#{userid}, #{userpw}, #{name}, #{email}, #{memberClass}, #{address})
+        AS new
+        ON DUPLICATE KEY UPDATE
+            userpw = new.userpw,
+            `name` = new.`name`,
+            email  = new.email,
+            address= new.address,
+            `class`= new.`class`
+    """)
 	void save(Member member);
 
 	@Select("""
-			    SELECT * FROM `user`
-			    WHERE
-			        (#{name} IS NULL OR name LIKE CONCAT('%', #{name}, '%'))
-			        AND (#{email} IS NULL OR email LIKE CONCAT('%', #{email}, '%'))
-			""")
-	List<Member> searcUL(String name, String email);
-	
+        SELECT id, regDate, userid, userpw, `name`, email, address, `class`
+        FROM `user`
+        WHERE
+            (#{name}  IS NULL OR `name`  LIKE CONCAT('%', #{name}, '%'))
+        AND (#{email} IS NULL OR email  LIKE CONCAT('%', #{email}, '%'))
+    """)
+	@ResultMap("MemberMap")
+	List<Member> searcUL(@Param("name") String name, @Param("email") String email);
+
 	@Update("""
-	        UPDATE `user`
-	        SET userpw = #{newPassword}
-	        WHERE userid = #{userid}
-	    """)	
-	void resetPassword(String userid, String newPassword);
+        UPDATE `user`
+        SET userpw = #{newPassword}
+        WHERE userid = #{userid}
+    """)
+	void resetPassword(@Param("userid") String userid,
+					   @Param("newPassword") String newPassword);
 }

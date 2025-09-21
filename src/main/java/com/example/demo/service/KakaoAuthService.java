@@ -1,66 +1,73 @@
 package com.example.demo.service;
 
-import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 @Service
 public class KakaoAuthService {
 
-    @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
-    private String kakaoClientId;
-
     private static final String KAKAO_USER_INFO_URL = "https://kapi.kakao.com/v2/user/me";
+    private final RestTemplate restTemplate;
 
-    public Map<String, Object> verifyToken(String accessToken) throws IOException {
-        RestTemplate restTemplate = new RestTemplate();
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer " + accessToken);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-
-        ResponseEntity<Map> response = restTemplate.exchange(
-            KAKAO_USER_INFO_URL,
-            HttpMethod.GET,
-            entity,
-            Map.class
-        );
-
-        return response.getBody();
+    public KakaoAuthService(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
     }
-    
-    public String getKakaoUserId(String accessToken) {
+
+    /** accessToken 으로 사용자 정보 조회 → 표준화된 Map 반환(id/email/name) */
+    public Map<String, Object> verifyToken(String accessToken) {
         try {
-            Map<String, Object> userInfo = verifyToken(accessToken);
-            // 카카오의 사용자 ID는 "id" 속성으로 제공됨
-            if (userInfo != null && userInfo.containsKey("id")) {
-                return userInfo.get("id").toString();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + accessToken);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<Map> res = restTemplate.exchange(
+                    KAKAO_USER_INFO_URL, HttpMethod.GET, entity, Map.class);
+
+            Map<String, Object> body = res.getBody();
+            if (body == null) throw new IllegalArgumentException("Empty Kakao response");
+
+            // 안전 추출
+            Object idObj = body.get("id");
+            String id = (idObj != null) ? String.valueOf(idObj) : null;
+
+            String email = null, name = null;
+            Object accountObj = body.get("kakao_account");
+            if (accountObj instanceof Map<?, ?> account) {
+                Object emailObj = account.get("email");
+                if (emailObj instanceof String) email = (String) emailObj;
+
+                Object profileObj = account.get("profile");
+                if (profileObj instanceof Map<?, ?> profile) {
+                    Object nickObj = profile.get("nickname");
+                    if (nickObj instanceof String) name = (String) nickObj;
+                }
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+
+            Map<String, Object> normalized = new HashMap<>();
+            normalized.put("id", id);
+            normalized.put("email", email); // 동의 안했을 수 있음(null)
+            normalized.put("name", name != null ? name : ("kakao_user_" + id));
+            return normalized;
+
+        } catch (RestClientException e) {
+            throw new IllegalArgumentException("Kakao token verification failed", e);
         }
-        return null;
+    }
+
+    public String getKakaoUserId(String accessToken) {
+        return String.valueOf(verifyToken(accessToken).get("id"));
     }
 
     public String getKakaoEmail(String accessToken) {
-        try {
-            Map<String, Object> userInfo = verifyToken(accessToken);
-            // 카카오의 이메일은 "kakao_account.email" 속성으로 제공됨
-            if (userInfo != null && userInfo.containsKey("kakao_account")) {
-                Map<String, Object> kakaoAccount = (Map<String, Object>) userInfo.get("kakao_account");
-                if (kakaoAccount != null && kakaoAccount.containsKey("email")) {
-                    return kakaoAccount.get("email").toString();
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
+        Object v = verifyToken(accessToken).get("email");
+        return v != null ? v.toString() : null;
     }
-}	
+}

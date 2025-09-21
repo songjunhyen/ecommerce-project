@@ -2,11 +2,7 @@ package com.example.demo.dao;
 
 import java.util.List;
 
-import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.annotations.*;
 
 import com.example.demo.vo.Cart;
 
@@ -14,73 +10,141 @@ import com.example.demo.vo.Cart;
 public interface CartDao {
 
 	@Select("""
-			    SELECT * FROM cart WHERE userid = #{userid}
-			""")
-	public List<Cart> GetCartList(String userid);
+        SELECT
+            id,
+            userid,
+            productid,
+            productname,
+            color,
+            size,
+            count,
+            price,
+            (price * count) AS priceall
+        FROM cart
+        WHERE userid = #{userid}
+        ORDER BY id DESC
+    """)
+	List<Cart> GetCartList(String userid);
 
 	@Insert("""
-			    INSERT INTO cart (userid, productid, productname, color, size, count, price)
-			    VALUES (#{userid}, #{productid}, #{name}, #{color}, #{size}, #{count}, #{price})
-			""")
-	public void AddCartList(String userid, int productid, String name, String color, String size, int count, int price);
+        INSERT INTO cart (userid, productid, productname, color, size, count, price)
+        VALUES (#{userid}, #{productid}, #{name}, #{color}, #{size}, #{count}, #{price})
+    """)
+	void AddCartList(@Param("userid") String userid,
+					 @Param("productid") int productid,
+					 @Param("name") String name,
+					 @Param("color") String color,
+					 @Param("size") String size,
+					 @Param("count") int count,
+					 @Param("price") int price);
 
 	@Insert("""
-			    INSERT INTO cart (userid, productid, productname, color, size, count, price)
-			    VALUES (#{userid}, #{productid}, #{productname}, #{color}, #{size}, #{count}, #{price})
-			""")
-	public void insertCart(String userid, int productid, String productname, String color, String size, int count,
-			int price);
+        INSERT INTO cart (userid, productid, productname, color, size, count, price)
+        VALUES (#{userid}, #{productid}, #{productname}, #{color}, #{size}, #{count}, #{price})
+    """)
+	void insertCart(@Param("userid") String userid,
+					@Param("productid") int productid,
+					@Param("productname") String productname,
+					@Param("color") String color,
+					@Param("size") String size,
+					@Param("count") int count,
+					@Param("price") int price);
 
 	@Update("""
-			    UPDATE cart
-			    SET count = #{count}
-			    WHERE userid = #{userid} AND productid = #{productid} AND color = #{color} AND size = #{size}
-			""")
-	void updateCount(String userid, int productid, String color, String size, int count);
+        UPDATE cart
+        SET count = #{count}
+        WHERE userid = #{userid}
+          AND productid = #{productid}
+          AND color = #{color}
+          AND size = #{size}
+    """)
+	void updateCount(@Param("userid") String userid,
+					 @Param("productid") int productid,
+					 @Param("color") String color,
+					 @Param("size") String size,
+					 @Param("count") int count);
 
 	@Delete("""
-			    DELETE FROM cart
-			    WHERE id = #{id} AND userid = #{userid} AND productid = #{productid} AND color = #{color} AND size = #{size}
-			""")
-	public void DeleteCartList(int id, String userid, int productid, String color, String size);
+        DELETE FROM cart
+        WHERE id = #{id}
+          AND userid = #{userid}
+          AND productid = #{productid}
+          AND color = #{color}
+          AND size = #{size}
+    """)
+	void DeleteCartList(@Param("id") int id,
+						@Param("userid") String userid,
+						@Param("productid") int productid,
+						@Param("color") String color,
+						@Param("size") String size);
 
 	@Select("""
-			    SELECT COUNT(*) FROM cart
-			    WHERE userid = #{userid}
-			      AND productid = #{productid}
-			      AND color = #{color}
-			      AND size = #{size}
-			""")
-	public int checking(String userid, int productid, String color, String size);
+        SELECT COUNT(*)
+        FROM cart
+        WHERE userid = #{userid}
+          AND productid = #{productid}
+          AND color = #{color}
+          AND size = #{size}
+    """)
+	int checking(@Param("userid") String userid,
+				 @Param("productid") int productid,
+				 @Param("color") String color,
+				 @Param("size") String size);
 
 	@Select("""
-			    SELECT id FROM cart
-			    WHERE userid = #{userid}
-			      AND productid = #{productid}
-			      AND productname = #{productname}
-			      AND color = #{color}
-			      AND size = #{size}
-			""")
-	public int GetCartId(String userid, int productid, String productname, String color, String size);
+        SELECT IFNULL(MAX(id), 0) AS id
+        FROM cart
+        WHERE userid = #{userid}
+          AND productid = #{productid}
+          AND productname = #{productname}
+          AND color = #{color}
+          AND size = #{size}
+    """)
+	int GetCartId(@Param("userid") String userid,
+				  @Param("productid") int productid,
+				  @Param("productname") String productname,
+				  @Param("color") String color,
+				  @Param("size") String size);
 
 	@Update("""
-			    UPDATE cart
-			    SET color = #{color}
-			    WHERE id = #{id} AND userid = #{userid} AND productid = #{productid} AND size = #{size}
-			""")
-	public void updateColor(int id, String userid, int productid, String color, String size);
+        UPDATE cart
+        SET color = #{color}
+        WHERE id = #{id}
+          AND userid = #{userid}
+          AND productid = #{productid}
+          AND size = #{size}
+    """)
+	void updateColor(@Param("id") int id,
+					 @Param("userid") String userid,
+					 @Param("productid") int productid,
+					 @Param("color") String color,
+					 @Param("size") String size);
 
 	@Update("""
-			    UPDATE cart
-			    SET size = #{size}
-			    WHERE id = #{id} AND userid = #{userid} AND productid = #{productid} AND color = #{color}
-			""")
-	public void updateSize(int id, String userid, int productid, String color, String size);
+        UPDATE cart
+        SET size = #{size}
+        WHERE id = #{id}
+          AND userid = #{userid}
+          AND productid = #{productid}
+          AND color = #{color}
+    """)
+	void updateSize(@Param("id") int id,
+					@Param("userid") String userid,
+					@Param("productid") int productid,
+					@Param("color") String color,
+					@Param("size") String size);
 
 	@Update("""
-			    UPDATE cart
-			    SET size = #{size}, color = #{color}
-			    WHERE id = #{id} AND userid = #{userid} AND productid = #{productid}
-			""")
-	public void updateTwo(int id, String userid, int productid, String color, String size);
+        UPDATE cart
+        SET size = #{size},
+            color = #{color}
+        WHERE id = #{id}
+          AND userid = #{userid}
+          AND productid = #{productid}
+    """)
+	void updateTwo(@Param("id") int id,
+				   @Param("userid") String userid,
+				   @Param("productid") int productid,
+				   @Param("color") String color,
+				   @Param("size") String size);
 }

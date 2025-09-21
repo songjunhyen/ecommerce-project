@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,28 +26,27 @@ import jakarta.servlet.http.HttpSession;
 
 @Controller
 public class AdminController {
-	private final AdminService adminService;
 
-	public AdminController(AdminService adminService) {
-		this.adminService = adminService;
-	}
+	@Autowired
+	private AdminService adminService;
 
 	@GetMapping("/admin/Dashboard")
-	public String Board(Model model) {
+	public String Board(Model model) {	//대쉬보드 이장
 		String userid = SecurityUtils.getCurrentUserId();
-		Admin foundadmin = adminService.getbyuserid(userid);
+		Admin foundadmin = adminService.getAdminClassByUserid(userid); //내부에는 adminClass랑 name만 들어있음
 		model.addAttribute("admin", foundadmin);
 		return "admin/dashboard";
 	}
 
+	// ---------------- 폐이지 이동 ------------------
 	@GetMapping("/admin/Signup")
 	public String signUP() {
 		return "admin/signup";
 	}
 	
-	@GetMapping("/admin/Signupreport")
+	@GetMapping("/admin/SignupReport")
 	public String signUPre() {
-		return "admin/signupreport";
+		return "admin/signupReport";
 	}
 
 	@GetMapping("/admin/Modify")
@@ -54,9 +54,9 @@ public class AdminController {
 		return "admin/modify";
 	}
 
-	@GetMapping("/admin/Modify1")
-	public String Modif1() {
-		return "admin/Adminmodify";
+	@GetMapping("/admin/ModifyAdmin")
+	public String ModifyAdmin() {
+		return "admin/adminModify";
 	}
 
 	@GetMapping("/admin/Search")
@@ -64,15 +64,29 @@ public class AdminController {
 		return "admin/search";
 	}
 
-	@GetMapping("/admin/searchbyemail")
-	public String check(String email, Model model) {
-		Admin foundadmin = adminService.getbyemail(email);
-		model.addAttribute("admin", foundadmin);
-		return "admin/check";
-	}
+	// ---------------------------------------------------
 
 	@PostMapping("/admin/signup")
 	public String signup(@RequestParam String name, @RequestParam String email, @RequestParam int adminclass, RedirectAttributes redirectAttributes) {
+
+		if (name == null || name.trim().isEmpty() ||
+				email == null || email.trim().isEmpty()) {
+			redirectAttributes.addFlashAttribute("error", "필수 항목이 비어있습니다.");
+			return "redirect:/admin/Signup";
+		}
+
+		// 2) 특수문자 포함 여부 체크 (한글,영문,숫자만 허용)
+		if (!name.matches("^[a-zA-Z0-9가-힣]+$")) {
+			redirectAttributes.addFlashAttribute("error", "이름에 특수문자를 포함할 수 없습니다.");
+			return "redirect:/admin/Signup";
+		}
+
+		// 이메일 형식 체크
+		if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
+			redirectAttributes.addFlashAttribute("error", "이메일 형식이 올바르지 않습니다.");
+			return "redirect:/admin/Signup";
+		}
+
 		LocalDateTime currentTime = LocalDateTime.now();
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
 		String formattedDateTime = currentTime.format(formatter);
@@ -84,19 +98,8 @@ public class AdminController {
 		Admin newAdmin = new Admin(adminid, adminpw, name, email);
 		adminService.signup(newAdmin);
 		redirectAttributes.addFlashAttribute("admin", newAdmin);
-		return "redirect:/admin/Signupreport";
+		return "redirect:/admin/SignupReport";
 	}
-
-	@PostMapping("/admin/modify")
-	public String modify(HttpSession session, @RequestParam String name, @RequestParam String email) {
-
-		UUID uuid = UUID.randomUUID();
-		String newpw = uuid.toString().replace("-", "");
-
-		adminService.modify(newpw, name, email);
-		return "product/main";
-	}
-	
 
 	@GetMapping("/admin/Signout") // jsp쪽에서 비번 체크하도록
 	public String Sigbout(HttpSession session, @RequestParam String email) {
@@ -106,7 +109,7 @@ public class AdminController {
 		return "redirect:/Home/Main";
 	}
 
-	@GetMapping("/admin/logout") // jsp쪽에서 비번 체크하도록
+	@GetMapping("/admin/logout")
 	public String logout(HttpSession session) {
 		// 세션에서 userid 제거
 		session.removeAttribute("id");
@@ -116,10 +119,10 @@ public class AdminController {
 		return "redirect:/Home/Main";
 	}
 		
-	@RequestMapping("/admin/checkEmail.do")
+	@RequestMapping("/admin/checkEmail_do")
 	@ResponseBody
 	public Map<Object, Object> checkEmail(@RequestParam String email) {
-		int id = adminService.getid3(email);
+		int id = adminService.getIdByEmail(email);
         //getMemberId는 id로 멤버의 dto를 꺼내오는 메소드
         
 		Map<Object, Object> map = new HashMap<>();
@@ -129,26 +132,6 @@ public class AdminController {
 			map.put("cnt", 0);
 		// 아이디가 존재하면
 		}else {
-			map.put("cnt", 1);
-		}
-		
-		return map;
-	}
-	
-	@RequestMapping("/admin/checkName.do")
-	@ResponseBody
-	public Map<Object, Object> checkName(@RequestParam String name) {
-		int id = adminService.getid4(name);
-        //getMemberId는 id로 멤버의 dto를 꺼내오는 메소드
-        
-		Map<Object, Object> map = new HashMap<>();
-
-		// 아이디가 존재하지 않으면
-		if(id == 0) {
-			map.put("cnt", 0);
-		// 아이디가 존재하면
-		}else {
-			Admin foundadmin = adminService.getbyname(name);
 			map.put("cnt", 1);
 		}
 		
@@ -170,7 +153,6 @@ public class AdminController {
 			email = null; // email이 빈 문자열일 경우 null로 처리
 		}
 
-		// 검색 로직을 구현합니다.
 		List<Admin> admins = adminService.searchAdmin(adminclass, name, email);
 		return admins;
 	}

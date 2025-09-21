@@ -3,13 +3,15 @@ package com.example.demo.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.dao.CartDao;
 import com.example.demo.vo.Cart;
 
 @Service
+@Transactional(readOnly = true)
 public class CartService {
-	private CartDao cartDao;
+	private final CartDao cartDao;
 
 	CartService(CartDao cartDao) {
 		this.cartDao = cartDao;
@@ -19,39 +21,53 @@ public class CartService {
 		return cartDao.GetCartList(userid);
 	}
 
+	@Transactional
 	public void AddCartList(String userid, int productid, String name, String color, String size, int count, int price) {
-		cartDao.AddCartList(userid, productid, name, color, size, count, price);
+		int safeCount = clampCount(count);
+		cartDao.AddCartList(userid, productid, name, color, size, safeCount, price);
 	}
 
+	@Transactional
 	public void ModifyCartList(int id, String userid, int productid, String productname, String a_color, String a_size,
-			String color, String size, int count, int price) {
-		// a_붙은게 기존값 없는게 수정된값
-		if (checking(userid, productid, a_color, a_size)) {
-			// 기존 데이터가 존재할 경우
-			if (id != GetCartId(userid, productid, productname, a_color, a_size)) {
-				// 해당 제품이 장바구니에 이미 존재하지 않으면 새로 추가
-				cartDao.DeleteCartList(id, userid, productid, a_color, a_size); // 기존 아이템 삭제
-				cartDao.insertCart(userid, productid, productname, color, size, count, price); // 새로운 아이템 추가
-			} else {
-				// 해당 제품이 장바구니에 이미 존재하면 차이나는 것만 업데이트
-				if (color.equals(a_color) && size.equals(a_size)) {
-					cartDao.updateCount(userid, productid, color, size, count); // 수량 업데이트
-				}
-				if (!color.equals(a_color)) {
-					cartDao.updateColor(id,userid, productid, color, size); // 색상 업데이트
-				}
-				if (!size.equals(a_size)) {
-					cartDao.updateSize(id, userid, productid, color, size); // 사이즈 업데이트
-				}if(!color.equals(a_color)&&!size.equals(a_size)) {
-					cartDao.updateTwo(id, userid, productid, color, size);
-				}
-			}
+							   String color, String size, int count, int price) {
+		// a_* : 기존값, 나머지 : 수정된 값
+		int safeCount = clampCount(count);
+
+		boolean existed = checking(userid, productid, a_color, a_size);
+		if (!existed) {
+			// 기존 데이터가 없으면 새로 추가
+			cartDao.insertCart(userid, productid, productname, color, size, safeCount, price);
+			return;
+		}
+
+		// 기존 행의 id 일치 여부 확인 (DAO에서 없으면 0 반환하도록 정리되어 있음)
+		int currentId = GetCartId(userid, productid, productname, a_color, a_size);
+		if (id != currentId) {
+			// 방어: 동일 행이 아닐 경우 기존 것을 지우고 새로 추가
+			cartDao.DeleteCartList(id, userid, productid, a_color, a_size);
+			cartDao.insertCart(userid, productid, productname, color, size, safeCount, price);
+			return;
+		}
+
+		boolean colorChanged = (color != null && !color.equals(a_color));
+		boolean sizeChanged  = (size  != null && !size.equals(a_size));
+
+		if (colorChanged && sizeChanged) {
+			// 둘 다 변경: 한 번에 갱신 (WHERE: id, userid, productid)
+			cartDao.updateTwo(id, userid, productid, color, size);
+		} else if (colorChanged) {
+			// 색상만 변경 (WHERE: ... AND size = 기존값과 동일해야 함 → 컨트롤러에서 a_size 그대로 전달됨)
+			cartDao.updateColor(id, userid, productid, color, a_size);
+		} else if (sizeChanged) {
+			// 사이즈만 변경 (WHERE: ... AND color = 기존값과 동일해야 함 → 컨트롤러에서 a_color 그대로 전달됨)
+			cartDao.updateSize(id, userid, productid, a_color, size);
 		} else {
-			// 기존 데이터가 없을 경우 새로운 아이템 추가
-			cartDao.insertCart(userid, productid, productname, color, size, count, price); // 새로운 아이템 추가
+			// 옵션 동일 → 수량만 수정
+			cartDao.updateCount(userid, productid, color, size, safeCount);
 		}
 	}
 
+	@Transactional
 	public void DeleteCartList(int id, String userid, int productid, String color, String size) {
 		cartDao.DeleteCartList(id, userid, productid, color, size);
 	}
@@ -65,4 +81,10 @@ public class CartService {
 		return cartDao.GetCartId(userid, productid, productname, color, size);
 	}
 
+	// ===== helpers =====
+	private static int clampCount(int count) {
+		if (count < 1) return 1;
+		if (count > 99) return 99;
+		return count;
+	}
 }

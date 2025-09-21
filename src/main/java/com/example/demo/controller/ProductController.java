@@ -50,91 +50,41 @@ public class ProductController {
 	public String write() {
 		return "product/productadd"; // "product/productadd.jsp"를 반환하도록 설정
 	}
-/*
-	@GetMapping("/product/detail")
-	public String detail(HttpSession session, @RequestParam int id, Model model, HttpServletRequest request,
-			HttpServletResponse response) {		
-		boolean result = productService.searchProduct(id);
-		
-		String userid = SecurityUtils.getCurrentUserId();
-		String userRole = "";
-		int adminClass = 5;
-		if (userid != null && !userid.equals("Anonymous")) {
-			userRole = allService.isuser(userid);
-			if (userRole.equals("admin")) {
-				adminClass = allService.getadminclass(userid);
-			}
-			model.addAttribute("userRole", userRole);
-			model.addAttribute("adminClass", adminClass);
-		}
-		
-		if (!result) {
-			model.addAttribute("message", "오류가 발생하였습니다.");
-			return "error";
-		} else {
-			String writerid = productService.getwriterid(id);
 
-			Product product = productService.ProductDetail(id);
+    @GetMapping("/product/list")
+    public String list(@RequestParam(value = "page", defaultValue = "1") int page, Model model) {
+        List<Product> products = productService.getProductList();
 
-			if (writerid.equals(userid)) {
-				model.addAttribute("product", product);
-				return "product/productdetail";
-			} else {
-				Cookie[] cookies = request.getCookies();
-				boolean shouldUpdateViewCount = true;
-				LocalDateTime now = LocalDateTime.now();
-				String productCookieName = "viewedProduct_" + id;
+        Collections.reverse(products);
 
-				if (cookies != null) {
-					for (Cookie cookie : cookies) {
-						if (cookie.getName().equals(productCookieName)) {
-							// 쿠키에서 저장된 시간 추출
-							LocalDateTime lastVisitTime = LocalDateTime.parse(cookie.getValue());
-							if (Duration.between(lastVisitTime, now).toMinutes() <= 1440) { // 1일을 분 단위로 계산
-								shouldUpdateViewCount = false;
-							}
-							// 쿠키 유효 시간 갱신
-							cookie.setMaxAge(86400); // 1일 (24시간 × 60분 × 60초)
-							cookie.setValue(now.toString());
-							response.addCookie(cookie);
-							break;
-						}
-					}
-				}
+        int pageSize = 10;
+        int totalCount = products.size();
+        int totalPages = (int) Math.ceil((double) totalCount / pageSize);
+        int start = (page - 1) * pageSize;
+        int end = Math.min(start + pageSize, totalCount);
 
-				// 쿠키 설정: 제품 ID와 방문 시간을 저장
-				if (shouldUpdateViewCount) {
-					Cookie viewedCookie = new Cookie(productCookieName, now.toString());
-					viewedCookie.setMaxAge(86400); // 쿠키 유효 시간 1일
-					response.addCookie(viewedCookie);
+        List<Product> paginatedProducts = products.subList(start, end);
 
-					// 조회수 증가
-					productService.updateViewCount(id);
-				}
-								
-				model.addAttribute("product", product);
-				return "product/productdetail";
-			}
-		}
-	}
-*/	
-	@GetMapping("/product/list")
-	public String list(@RequestParam(value = "page", defaultValue = "1") int page, Model model) {
-		List<Product> products = productService.getProductlist();
-		Collections.reverse(products);
-		int pageSize = 10; // 한 페이지에 보여줄 게시물 수
-		int totalCount = products.size();
-		int totalPages = (int) Math.ceil((double) totalCount / pageSize);
-		int start = (page - 1) * pageSize;
-		int end = Math.min(start + pageSize, totalCount);
+        model.addAttribute("products", paginatedProducts);
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", totalPages);
 
-		List<Product> paginatedProducts = products.subList(start, end);
+        // ★ 로그인 유저의 memberClass 모델에 주입
+        String userid = SecurityUtils.getCurrentUserId();
+        int memberClass = 0; // 기본 일반회원
+        if (userid != null && !"Anonymous".equals(userid)) {
+            // 프로젝트에 맞춰 구현:
+            // 1) AllService에 관리자 등급 조회 메서드가 있으면 사용
+            //    (관리자면 1 반환하도록 통일)
+            memberClass = allService.getadminclass(userid);
+            // 만약 allService가 아닌 별도 MemberService가 있으면
+            // memberClass = memberService.findByUserid(userid).getMemberClass();
+        }
+        model.addAttribute("memberClass", memberClass);
 
-		model.addAttribute("products", paginatedProducts);
-		model.addAttribute("currentPage", page);
-		model.addAttribute("totalPages", totalPages);
-		return "product/productlist"; // "product/productadd.jsp"를 반환하도록 설정
-	}
+        return "product/productlist";
+    }
+
 
 	@GetMapping("/product/modify")
 	public String modify(Model model, @RequestParam int id) {
@@ -204,15 +154,15 @@ public class ProductController {
     
     @PostMapping("/product/Detail")
     public String ProductDetail(HttpSession session, HttpServletRequest request, HttpServletResponse response, Model model, @RequestParam int id) {
-        boolean result = productService.searchProduct(id);
+        boolean result = productService.exists(id);
         if (!result) {
             model.addAttribute("message", "제품 추가 중 오류가 발생하였습니다.");
             return "error";
         }
 
-        String writerid = productService.getwriterid(id);
+        String writerid = productService.getWriterId(id);
         String userid = SecurityUtils.getCurrentUserId();
-        Product product = productService.ProductDetail(id);
+        Product product = productService.getProductDetail(id);
 
         if (writerid.equals(userid)) {
             model.addAttribute("product", product);
@@ -238,41 +188,52 @@ public class ProductController {
     }
 
     private void handleViewCountCookie(HttpServletRequest request, HttpServletResponse response, int productId) {
-        Cookie[] cookies = request.getCookies();
-        boolean shouldUpdateViewCount = true;
-        LocalDateTime now = LocalDateTime.now();
-        String productCookieName = "viewedProduct_" + productId;
+        final String cookieName = "viewedProduct_" + productId;
+        final long nowSec = java.time.Instant.now().getEpochSecond();
+        final long oneDaySec = 86400L;
 
+        boolean shouldUpdateViewCount = true;
+
+        Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if (cookie.getName().equals(productCookieName)) {
+                if (cookieName.equals(cookie.getName())) {
+                    String v = cookie.getValue();
                     try {
-                        LocalDateTime lastVisitTime = LocalDateTime.parse(cookie.getValue());
-                        if (Duration.between(lastVisitTime, now).toMinutes() <= 1440) {
+                        long lastSec = Long.parseLong(v); // epoch seconds
+                        if ((nowSec - lastSec) <= oneDaySec) {
                             shouldUpdateViewCount = false;
                         }
-                    } catch (DateTimeParseException e) {
-                        // 날짜 형식 오류 처리
-                        e.printStackTrace();
+                    } catch (NumberFormatException ignored) {
+                        // 값 이상하면 새로 갱신
                     }
-                    // 쿠키 유효 시간 갱신
-                    updateCookie(response, productCookieName, now.toString(), 86400);
+                    // 유효시간/값 갱신
+                    updateCookie(response, cookieName, Long.toString(nowSec), (int) oneDaySec);
                     break;
                 }
             }
         }
 
-        // 쿠키 설정 및 조회수 증가
         if (shouldUpdateViewCount) {
-            updateCookie(response, productCookieName, now.toString(), 86400);
+            updateCookie(response, cookieName, Long.toString(nowSec), (int) oneDaySec);
             productService.updateViewCount(productId);
         }
     }
 
     private void updateCookie(HttpServletResponse response, String name, String value, int maxAge) {
         Cookie cookie = new Cookie(name, value);
-        cookie.setMaxAge(maxAge); // 쿠키 유효 시간 설정
+        cookie.setMaxAge(maxAge);
+        cookie.setPath("/");           // 경로 명시
+        cookie.setHttpOnly(true);      // JS 접근 차단
+        // cookie.setSecure(true);     // HTTPS 환경이면 활성화
         response.addCookie(cookie);
+
+        // SameSite 보강 (서블릿 Cookie에 속성이 없으므로 헤더로 추가)
+        response.addHeader("Set-Cookie",
+                name + "=" + value
+                        + "; Max-Age=" + maxAge
+                        + "; Path=/; HttpOnly; SameSite=Lax");
+        // HTTPS면 "; Secure" 도 같이 추가하세요.
     }
 
 	@PostMapping("/product/Modify")
@@ -281,7 +242,7 @@ public class ProductController {
 			@RequestParam int count, @RequestParam String category, @RequestParam String maker,
 			@RequestParam String color, @RequestParam String size, @RequestParam List<String> options) {
 
-		boolean result = productService.searchProduct(productId);
+		boolean result = productService.exists(productId);
 
 		if (!result) {
 			model.addAttribute("message", "제품 수정 중 오류가 발생하였습니다.");
@@ -297,7 +258,7 @@ public class ProductController {
 
 	@PostMapping("/product/Delete")
 	public String deleteProduct(Model model, @RequestParam int id) {
-		boolean result = productService.searchProduct(id);
+		boolean result = productService.exists(id);
 		if (!result) {
 			model.addAttribute("message", "제품 삭제 중 오류가 발생하였습니다.");
 			return "error";

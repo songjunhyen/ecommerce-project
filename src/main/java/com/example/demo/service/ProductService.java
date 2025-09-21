@@ -10,9 +10,9 @@ import com.example.demo.vo.Product;
 
 @Service
 public class ProductService {
-	private ProductDao productDao;
+	private final ProductDao productDao;
 
-	ProductService(ProductDao productDao) {
+	public ProductService(ProductDao productDao) {
 		this.productDao = productDao;
 	}
 
@@ -20,12 +20,8 @@ public class ProductService {
 		productDao.addProduct(product);
 	}
 
-	public boolean searchProduct(int productId) {
-		if(!Util.isEmpty(productDao.searchProduct(productId))) {
-			return true;
-		} else {
-			return false;
-		}
+	public boolean exists(int productId) {
+		return productDao.existsById(productId) > 0;
 	}
 
 	public void modifyProduct(int productId, Product product) {
@@ -36,20 +32,19 @@ public class ProductService {
 		productDao.deleteProduct(productId);
 	}
 
-	public List<Product> getProductlist() {
+	public List<Product> getProductList() {
 		return productDao.getProductList();
 	}
 
-	public Product ProductDetail(int id) {
-		return productDao.productDetail(id);
+	public Product getProductDetail(int id) {
+		return productDao.getProductDetail(id);
 	}
 
-	public String getwriterid(int id) {
-		return productDao.getwriter(id);
+	public String getWriterId(int id) {
+		return productDao.getWriterId(id);
 	}
 
 	public void updateViewCount(int id) {
 		productDao.updateViewCount(id);
 	}
-
 }

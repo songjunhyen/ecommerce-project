@@ -4,97 +4,87 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;            // ✅ Spring @Value
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
 import com.example.demo.service.AllService;
 import com.example.demo.service.GoogleAuthService;
 import com.example.demo.service.KakaoAuthService;
 import com.example.demo.vo.Member;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.client.util.Value;
 
 import jakarta.servlet.http.HttpSession;
 
 @RestController
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/auth") // ✅ 권장: 명확한 prefix
 public class LoginController {
-
 	private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
 
-	@Value("${spring.oauth2.client.registration.google.client-id}")
+	@Value("${spring.security.oauth2.client.registration.google.client-id}")
 	private String googleClientId;
 
-	@Value("${spring.oauth2.client.registration.kakao.client-id}")
+	@Value("${spring.security.oauth2.client.registration.kakao.client-id}")
 	private String kakaoClientId;
-	
-	@Autowired
-	private HttpSession httpSession;
 
-	@Autowired
-	private GoogleAuthService googleAuthService;
+	private final HttpSession session;
+	private final GoogleAuthService googleAuthService;
+	private final KakaoAuthService kakaoAuthService;
+	private final AllService allService;
 
-	@Autowired
-	private KakaoAuthService kakaoAuthService; // KakaoAuthService를 추가합니다
-	
-	@Autowired
-	private AllService allService;
-
-	private static final GsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
+	public LoginController(HttpSession session,
+						   GoogleAuthService googleAuthService,
+						   KakaoAuthService kakaoAuthService,
+						   AllService allService) {
+		this.session = session;
+		this.googleAuthService = googleAuthService;
+		this.kakaoAuthService = kakaoAuthService;
+		this.allService = allService;
+	}
 
 	@PostMapping("/google")
 	public ResponseEntity<?> handleGoogleLogin(@RequestBody Map<String, String> request) {
 		String idTokenString = request.get("idToken");
-
 		try {
+			// ✅ audience(googleClientId) 검증 포함되어야 안전
 			GoogleIdToken.Payload payload = googleAuthService.verifyToken(idTokenString);
-			String userEmail = payload.getEmail();
-			String name = (String) payload.get("name");
+			String email = payload.getEmail();
+			String name  = (String) payload.get("name");
 
-			// 사용자 인증 및 세션 처리
-			Member user = allService.saveOrUpdateUser(userEmail, name);
-			httpSession.setAttribute("user", user);
-			httpSession.setAttribute("userRole2", "user");
+			Member user = allService.saveOrUpdateUser(email, name);
+
+			// ✅ 세션엔 최소 식별자만 권장
+			session.setAttribute("userId", user.getUserid());
+			session.setAttribute("userRole", "user");
 
 			return ResponseEntity.ok(Map.of("redirectUrl", "/Home/Main"));
 		} catch (Exception e) {
-			logger.error("Error during Google token verification", e);
-			return ResponseEntity.status(500).body(Map.of("error", "Server error during token verification"));
+			logger.error("Google token verification failed", e); // 토큰 값 자체는 로그에 찍지 않음
+			return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
 		}
 	}
 
 	@PostMapping("/kakao")
 	public ResponseEntity<?> handleKakaoLogin(@RequestBody Map<String, String> request) {
-		String accessToken = request.get("accessToken"); // Kakao는 accessToken을 사용합니다
-
+		String accessToken = request.get("accessToken");
 		try {
-			Map<String, Object> userInfo = kakaoAuthService.verifyToken(accessToken);
-			String userEmail = (String) userInfo.get("email");
-			String name = (String) userInfo.get("name");
+			Map<String, Object> info = kakaoAuthService.verifyToken(accessToken); // 내부에서 /v2/user/me 호출
+			String email = (String) info.get("email");   // 동의 안 했을 수 있음 → 서비스에서 null 허용 처리
+			String name  = (String) info.get("name");
 
-			// 사용자 인증 및 세션 처리
-			Member user = allService.saveOrUpdateUser(userEmail, name);
-			httpSession.setAttribute("user", user);
-			httpSession.setAttribute("userRole2", "user");
+			Member user = allService.saveOrUpdateUser(email, name);
+
+			session.setAttribute("userId", user.getUserid());
+			session.setAttribute("userRole", "user");
 
 			return ResponseEntity.ok(Map.of("redirectUrl", "/Home/Main"));
 		} catch (Exception e) {
-			logger.error("Error during Kakao token verification", e);
-			return ResponseEntity.status(500).body(Map.of("error", "Server error during token verification"));
+			logger.error("Kakao token verification failed", e);
+			return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
 		}
 	}
 
 	@GetMapping("/google/login")
 	public String googleLogin() {
-		return "AllLogin"; // 구글 로그인 페이지를 반환
+		return "AllLogin"; // JSP 뷰 이름 반환 시에는 Controller가 보통 @Controller (not @RestController)
 	}
 }
-
-
-	

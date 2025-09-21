@@ -2,68 +2,70 @@ package com.example.demo.dao;
 
 import java.util.List;
 
-import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.annotations.*;
 
 import com.example.demo.vo.Product;
 
 @Mapper
 public interface ProductDao {
 
+	// DB 기본값(regDate, viewcount) 쓰도록 제거
 	@Insert("""
-			INSERT INTO product (writer, name, price, description, imageUrl, count, category, maker, color, size, regDate, viewcount)
-			VALUES (#{writer}, #{name}, #{price}, #{description}, #{imageUrl}, #{count}, #{category}, #{maker}, #{color}, #{size}, #{regDate}, #{viewcount})
-			""")
-	void addProduct(Product product);
+        INSERT INTO product
+        (`writer`, `name`, price, `description`, imageUrl, `count`, category, maker, color, size, additionalOptions)
+        VALUES
+        (#{writer}, #{name}, #{price}, #{description}, #{imageUrl}, #{count}, #{category}, #{maker}, #{color}, #{size}, #{additionalOptions})
+        """)
+	int addProduct(Product product);
 
-	@Select("""
-			SELECT name FROM product WHERE id = #{productId}
-			""")
-	String searchProduct(int productId);
+	@Select("SELECT COUNT(*) FROM product WHERE id = #{productId}")
+	int existsById(@Param("productId") int productId);
 
+	// 없는 컬럼 updateDate 제거 + 예약어 백틱 처리 + @Param 명시
 	@Update("""
-			UPDATE product SET
-			    name = #{product.name},
-			    price = #{product.price},
-			    description = #{product.description},
-			    count = #{product.count},
-			    category = #{product.category},
-			    maker = #{product.maker},
-			    color = #{product.color},
-			    size = #{product.size},
-			    regDate = #{product.regDate},
-			    viewcount = #{product.viewcount}
-			WHERE id = #{productId}
-			""")
-	void modifyProduct(int productId, Product product);
+        UPDATE product SET
+            `name` = #{product.name},
+            price = #{product.price},
+            `description` = #{product.description},
+            `count` = #{product.count},
+            category = #{product.category},
+            maker = #{product.maker},
+            color = #{product.color},
+            size = #{product.size},
+            additionalOptions = #{product.additionalOptions}
+        WHERE id = #{productId}
+        """)
+	int modifyProduct(@Param("productId") int productId, @Param("product") Product product);
 
-	@Delete("""
-			DELETE FROM product WHERE id = #{productId}
-			""")
-	void deleteProduct(int productId);
-	
+	@Delete("DELETE FROM product WHERE id = #{productId}")
+	int deleteProduct(@Param("productId") int productId);
+
 	@Select("""
-			SELECT * FROM product
-			""")
+        SELECT id, writer, `name`, price, `description`, imageUrl, `count`,
+               category, maker, color, size, additionalOptions, regDate, viewcount
+        FROM product
+        ORDER BY id DESC
+        """)
 	List<Product> getProductList();
 
 	@Select("""
-			SELECT * FROM product WHERE id = #{id}
-			""")
-	Product productDetail(int id);
-	
-	@Select("""
-			SELECT writer FROM product WHERE id = #{id}
-			""")
-	String getwriter(int id);
+        SELECT id, writer, `name`, price, `description`, imageUrl, `count`,
+               category, maker, color, size, additionalOptions, regDate, viewcount
+        FROM product
+        WHERE id = #{id}
+        """)
+	Product getProductDetail(@Param("id") int id);
 
-	@Update("""
-			UPDATE product SET
-			    viewcount = viewcount + 1
-			WHERE id = #{id}
-			""")
-	void updateViewCount(int id);
+	@Select("SELECT writer FROM product WHERE id = #{id}")
+	String getWriterId(@Param("id") int id);
+
+	@Update("UPDATE product SET viewcount = viewcount + 1 WHERE id = #{id}")
+	int updateViewCount(@Param("id") int id);
+
+	// 디버깅용: 지금 붙은 DB와 개수 확인
+	@Select("SELECT DATABASE()")
+	String currentSchema();
+
+	@Select("SELECT COUNT(*) FROM product")
+	int countAll();
 }

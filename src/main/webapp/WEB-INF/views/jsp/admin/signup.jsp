@@ -130,7 +130,7 @@ function checkEmailap() {
     var email = $("#email").val().trim();
 
     $.ajax({
-        url: 'checkEmail.do',
+        url: 'checkEmail_do',
         type: 'POST',
         data: {
            email: email

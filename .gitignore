@@ -32,5 +32,8 @@ build/
 ### VS Code ###
 .vscode/
 
-# Exclude application.yaml from Git
+# Spring Boot config (exclude all sensitive configs)
+src/main/resources/application.properties
+src/main/resources/application.yml
 src/main/resources/application.yaml
+src/main/resources/application-oauth.properties

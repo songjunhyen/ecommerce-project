@@ -1,369 +1,369 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-	pageEncoding="UTF-8"%>
-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
-<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions"%>
-<%@ page import="com.example.demo.vo.Product"%>
-<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form"%>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c"   uri="http://java.sun.com/jsp/jstl/core"%>
+<%@ taglib prefix="fn"  uri="http://java.sun.com/jsp/jstl/functions"%>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags"%>
 
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>제품 상세보기</title>
+  <meta charset="UTF-8" />
+  <title>제품 상세보기</title>
 
-<script
-	src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-<meta name="_csrf" content="${_csrf.token}">
-<meta name="_csrf_header" content="${_csrf.headerName}">
+  <!-- jQuery (head1.jsp에서 이미 로드한다면 이 줄 제거 가능) -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 
-<script>
-    var productId = "${product.id}";
-</script>
+  <!-- CSRF -->
+  <meta name="_csrf"        content="${_csrf.token}">
+  <meta name="_csrf_header" content="${_csrf.headerName}">
 
-<script>
-$(document).ready(function(){
-    csrfToken = $('meta[name="_csrf"]').attr('content');
-    csrfHeader = $('meta[name="_csrf_header"]').attr('content');
+  <style>
+    /* ===== 페이지 네임스페이스로 헤더/푸터와 충돌 방지 ===== */
+    #productDetailPage { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    #productDetailPage .title { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
 
-    $("#buybutton").click(function(event) {
-        event.preventDefault(); // 폼 제출 방지
-        var form = $("#memberForm"); // id가 memberForm인 폼
-        var size = form.find("select[name='size']").val();
-        var color = form.find("select[name='color']").val();
-        var quantity = form.find("input[name='count']").val();
-        var price = form.find("input[name='price']").val();
-        var totalPrice = quantity * price;
+    /* 레이아웃 */
+    #productDetailPage .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 900px){
+      #productDetailPage .grid { grid-template-columns: 1fr; }
+    }
 
-        buybutton(productId, size, color, totalPrice);
+    /* 이미지 영역 */
+    #productDetailPage .images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    #productDetailPage .images img { width: 100%; height: 220px; object-fit: cover; border-radius: 10px; border: 1px solid #eee; }
+    #productDetailPage .no-image { padding: 24px; text-align: center; border: 1px dashed #ddd; border-radius: 10px; color: #999; }
+
+    /* 정보 테이블 */
+    #productDetailPage table.detail { width: 100%; border-collapse: collapse; }
+    #productDetailPage table.detail th,
+    #productDetailPage table.detail td { border: 1px solid #e5e7eb; padding: 10px; }
+    #productDetailPage table.detail th { background: #f8fafc; text-align: left; width: 120px; }
+
+    /* 폼/버튼 */
+    #productDetailPage .form-row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    #productDetailPage select,
+    #productDetailPage input[type="number"] {
+      border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px;
+    }
+    #productDetailPage .btn {
+      border: 1px solid #111; background: #111; color: #fff;
+      padding: 10px 14px; border-radius: 10px; cursor: pointer;
+    }
+    #productDetailPage .btn.ghost { background:#fff; color:#111; }
+    #productDetailPage .btn:hover { opacity: 0.95; }
+    #productDetailPage .actions { margin-top: 14px; display:flex; gap:10px; flex-wrap: wrap; }
+
+    /* 섹션 */
+    #productDetailPage .section { margin-top: 28px; }
+    #productDetailPage .section h3 { margin: 0 0 10px; }
+
+    /* 리뷰 박스 */
+    #productDetailPage .review-box { border:1px solid #eee; border-radius:10px; padding:10px; }
+    #productDetailPage .review-item { border-top:1px solid #eee; padding:10px 0; }
+    #productDetailPage .review-item:first-child { border-top:none; }
+    #productDetailPage .review-writer { font-weight:600; }
+    #productDetailPage .review-date { font-size:12px; color:#888; }
+
+    /* 안내 라벨 */
+    #productDetailPage .note { font-size: 13px; color:#666; margin-top:8px; }
+
+    /* 모달 */
+    #productDetailPage .modal-backdrop {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      align-items: center; justify-content: center; z-index: 999;
+    }
+    #productDetailPage .modal {
+      background: #fff; width: 100%; max-width: 420px; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,.2);
+    }
+    #productDetailPage .modal-body { padding: 16px; }
+    #productDetailPage .field { display: grid; gap: 6px; margin-bottom: 10px; }
+    #productDetailPage .field input {
+      border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px;
+    }
+    #productDetailPage .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top: 10px; }
+  </style>
+
+  <script>
+    var productId  = "${product.id}";
+    var csrfToken, csrfHeader;
+
+    $(function(){
+      csrfToken  = $('meta[name="_csrf"]').attr('content');
+      csrfHeader = $('meta[name="_csrf_header"]').attr('content');
+
+      /* ===== 회원: 바로구매 즉시 처리 ===== */
+      $("#buybutton").on("click", function(e){
+        e.preventDefault();
+        var $f    = $("#memberForm");
+        var size  = $f.find("select[name='size']").val();
+        var color = $f.find("select[name='color']").val();
+        var qty   = parseInt($f.find("input[name='count']").val() || "1", 10);
+        var price = parseInt($f.find("input[name='price']").val() || "0", 10);
+        var total = qty * price;
+        buyMember(productId, size, color, total);
+      });
+
+      /* ===== 비회원: 바로구매 → 모달 오픈 ===== */
+      $("#guestBuyNowBtn").on("click", function(e){
+        e.preventDefault();
+
+        // 선택값 캡처
+        var $f    = $("#guestForm");
+        var size  = $f.find("select[name='size']").val();
+        var color = $f.find("select[name='color']").val();
+        var qty   = parseInt($f.find("input[name='count']").val() || "1", 10);
+        var price = parseInt($f.find("input[name='price']").val() || "0", 10);
+        var total = qty * price;
+
+        // 모달 열기
+        $("#emailPhoneModalBackdrop").css("display","flex");
+
+        // 확인 버튼(중복 바인딩 방지)
+        $("#submitEmailPhone").off("click").on("click", function(){
+          var email    = $("#email").val();
+          var phonenum = $("#phonenum").val();
+          buyGuest(email, phonenum, productId, size, color, total);
+        });
+      });
+
+      // 모달 닫기 (취소/백드롭/ESC)
+      $("#closeModal").on("click", function(){ $("#emailPhoneModalBackdrop").hide(); });
+      $("#emailPhoneModalBackdrop").on("click", function(e){
+        if (e.target.id === "emailPhoneModalBackdrop") { $(this).hide(); }
+      });
+      $(document).on("keydown", function(e){
+        if (e.key === "Escape") { $("#emailPhoneModalBackdrop").hide(); }
+      });
+
+      // 리뷰 로딩
+      loadReviews();
+      loadAverageStar();
     });
 
-    $("#buybutton2").click(function(event) {
-        event.preventDefault(); // 폼 제출 방지
-        var form = $("#guestForm"); // id가 guestForm인 폼
-        var size = form.find("select[name='size']").val();
-        var color = form.find("select[name='color']").val();
-        var quantity = form.find("input[name='count']").val();
-        var price = form.find("input[name='price']").val();
-        var totalPrice = quantity * price;
-
-        showModal(); // 모달창 열기
-
-        $("#submitEmailPhone").off("click").on("click", function() {
-            var email = $("#email").val();
-            var phonenum = $("#phonenum").val();
-            buybutton2(email, phonenum, productId, size, color, totalPrice); // 이메일과 전화번호 전달
-        });
-    });
-
-    $("#submitEmailPhone").click(function() {
-        var email = $("#email").val();
-        var phonenum = $("#phonenum").val();
-        buybutton2(email, phonenum, productId); // 이메일과 전화번호 전달
-    });
-
-    $("#closeModal").click(function() {
-        hideModal(); // 모달창 닫기
-    });
-
-    function buybutton(productId, size, color, totalPrice) {
-        $.ajax({
-            url: '../buying', // 서버에서 결과를 반환하는 URL
-            type: 'POST',
-            data: {
-                productId: productId,
-                sizeColor: size + '-' + color, // 사이즈와 컬러 목록
-                priceall: totalPrice
-            },
-            beforeSend: function(xhr) {
-                if (csrfToken && csrfHeader) {
-                    xhr.setRequestHeader(csrfHeader, csrfToken);
-                }
-            },
-            success: function(data) {
-                console.log("구매하기 페이지로 이동");
-                // 구매 후 페이지 이동 또는 상태 갱신
-            },
-            error: function(e) {
-                console.error("이용 중 오류가 발생했습니다:", e);
-            }
-        });
+    /* === AJAX 함수들 === */
+    function buyMember(productId, size, color, totalPrice){
+      $.ajax({
+        url: '../buying',
+        type: 'POST',
+        data: { productid: productId, sizecolor: size + '-' + color, priceall: totalPrice },
+        beforeSend: function(xhr){ if(csrfToken && csrfHeader){ xhr.setRequestHeader(csrfHeader, csrfToken); } },
+        success: function(){ location.href = "/confirmation"; },
+        error: function(e){ console.error(e); }
+      });
     }
 
-    function showModal() {
-        $("#emailPhoneModal").show();
+    function buyGuest(email, phonenum, productId, size, color, totalPrice){
+      $.ajax({
+        url: '../buying',
+        type: 'POST',
+        data: { email: email, phonenum: phonenum, productid: productId, sizecolor: size + '-' + color, priceall: totalPrice },
+        beforeSend: function(xhr){ if(csrfToken && csrfHeader){ xhr.setRequestHeader(csrfHeader, csrfToken); } },
+        success: function(){ $("#emailPhoneModalBackdrop").hide(); location.href = "/confirmation"; },
+        error: function(e){ console.error(e); }
+      });
     }
 
-    function hideModal() {
-        $("#emailPhoneModal").hide();
-    }
-
-    function buybutton2(email, phonenum, productId, size, color, totalPrice) {
-        $.ajax({
-            url: '../buying', // 서버에서 결과를 반환하는 URL
-            type: 'POST',
-            data: {
-                email: email,
-                phonenum: phonenum,
-                productId: productId,
-                sizeColor: size + '-' + color, // 사이즈와 컬러 목록
-                priceall: totalPrice
-            },
-            beforeSend: function(xhr) {
-                if (csrfToken && csrfHeader) {
-                    xhr.setRequestHeader(csrfHeader, csrfToken);
-                }
-            },
-            success: function(data) {
-                console.log("구매하기 페이지로 이동");
-                hideModal(); // 모달창 닫기
-                // 구매 후 페이지 이동 또는 상태 갱신
-            },
-            error: function(e) {
-                console.error("이용 중 오류가 발생했습니다:", e);
-            }
+    function loadReviews(){
+      $.get("/Review/list", { productid: productId }, function(list){
+        let html = '';
+        $.each(list, function(_, r){
+          html += '<div class="review-item">';
+          html +=   '<div class="review-writer">'+ (r.writer || '') +'</div>';
+          html +=   '<div style="margin:6px 0;">'+ (r.reviewText || '') +'</div>';
+          html +=   '<div class="review-date">'+ (r.regDate || '') +'</div>';
+          html += '</div>';
         });
+        $("#reviewsContainer").html(html || '<div style="color:#888;">리뷰가 없습니다.</div>');
+      });
     }
 
-    loadReviews();
-    loadAverageStar();
-
-    function loadReviews() {
-        $.get("/Review/list", { productid: productId }, function(data) {
-            let reviewsHtml = '';
-            $.each(data, function(index, review) {
-                reviewsHtml += '<div class="py-2 border-bottom-line pl-16">';
-                reviewsHtml += '<div class="text-m my-1 ml-2">' + review.writer + '</div>';
-                reviewsHtml += '<div class="text-m my-1 ml-2">' + review.reviewText + '</div>';
-                reviewsHtml += '<div class="text-xs text-gray-400">' + review.regDate + '</div>';
-                if (review.writer == '${userid}') {
-                    reviewsHtml += '<div id="modifyForm">';
-                    reviewsHtml += '<form action="/Review/modify" method="post" onsubmit="return confirm(\'정말 수정하시겠습니까?\');">';
-                    reviewsHtml += '<input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">';
-                    reviewsHtml += '<input type="hidden" name="productid" value="' + productId + '" />';
-                    reviewsHtml += '<input type="hidden" name="reviewid" value="' + review.id + '" />';
-                    reviewsHtml += '<textarea class="textarea textarea-bordered textarea-lg w-full" name="body" placeholder="수정 리뷰를 입력해주세요"></textarea>';
-                    reviewsHtml += '<div class="mt-4 reply-border p-4">';
-                    reviewsHtml += '<div class="flex justify-end">';
-                    reviewsHtml += '<button type="submit" class="btn btn-active btn-sm">수정하기</button>';
-                    reviewsHtml += '</div></div></form></div>';
-                    reviewsHtml += '<form action="/Review/delete" method="post" onsubmit="return confirm(\'정말 삭제하시겠습니까?\');">';
-                    reviewsHtml += '<input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">';
-                    reviewsHtml += '<input type="hidden" name="productid" value="' + productId + '" />';
-                    reviewsHtml += '<input type="hidden" name="reviewid" value="' + review.id + '" />';
-                    reviewsHtml += '<div class="mt-4 reply-border p-4">';
-                    reviewsHtml += '<div class="flex justify-end">';
-                    reviewsHtml += '<button class="btn btn-active btn-sm">삭제</button>';
-                    reviewsHtml += '</div></div></form>';
-                }
-                reviewsHtml += '</div>';
-            });
-            $("#reviewsContainer").html(reviewsHtml);
-        });
+    function loadAverageStar(){
+      $.get("/Review/getstar", { productid: productId }, function(avg){
+        $("#averageStar").text(Number(avg || 0).toFixed(1));
+      });
     }
-
-    function loadAverageStar() {
-        $.get("/Review/getstar", { productid: productId }, function(data) {
-            $("#averageStar").text(data.toFixed(1));
-        });
-    }
-
-    $("#addReviewForm").on("submit", function(event) {
-        event.preventDefault();
-        $.post("/Review/add", $(this).serialize(), function() {
-            loadReviews();
-            loadAverageStar();
-        });
-    });
-});
-</script>
+  </script>
 </head>
-<%@ include file="../includes/head1.jsp"%>
+
 <body>
-	<div class="table-box-type">
+  <%@ include file="../includes/head1.jsp"%>
 
-		<div>
-			<h3>제품 이미지</h3>
-			<c:if test="${not empty product.imageUrl}">
-				<!-- 이미지 URL을 콤마로 분리하여 배열로 변환 -->
-				<c:set var="imageUrls" value="${fn:split(product.imageUrl, ',')}" />
+  <div id="productDetailPage">
+    <div class="title">제품 상세보기</div>
 
-				<!-- 이미지 URL 배열을 반복하여 각각의 이미지를 출력 -->
-				<c:forEach var="url" items="${imageUrls}">
-					<img src="${url}" alt="Product Image" style="max-width: 300px;" />
-				</c:forEach>
-			</c:if>
+    <div class="grid">
+      <!-- 이미지 영역 -->
+      <div>
+        <c:choose>
+          <c:when test="${not empty product.imageUrl}">
+            <c:set var="imageUrls" value="${fn:split(product.imageUrl, ',')}"/>
+            <div class="images">
+              <c:forEach var="url" items="${imageUrls}">
+                <img src="${url}" alt="Product Image" />
+              </c:forEach>
+            </div>
+          </c:when>
+          <c:otherwise>
+            <div class="no-image">이미지가 없습니다.</div>
+          </c:otherwise>
+        </c:choose>
+      </div>
 
-			<c:if test="${empty product.imageUrl}">
-				<p>이미지가 없습니다.</p>
-			</c:if>
-		</div>
-		<table>
-			<thead>
-				<tr>
-					<th>번호</th>
-					<th>카테고리</th>
-					<th>제품명</th>
-					<th>금액</th>
-					<th>제조사</th>
-					<th>색상</th>
-					<th>사이즈</th>
-					<th>제품설명</th>
-					<th>조회수</th>
-					<th>작성일</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr>
-					<td>${product.id}</td>
-					<td>${product.category}</td>
-					<td>${product.name}</td>
-					<td>${product.price}</td>
-					<td>${product.maker}</td>
-					<td>${product.color}</td>
-					<td>${product.size}</td>
-					<td>${product.description}</td>
-					<td>${product.viewcount}</td>
-					<td>${product.regDate}</td>
-				</tr>
-			</tbody>
-		</table>
+      <!-- 정보 영역 -->
+      <div>
+        <table class="detail">
+          <tbody>
+            <tr><th>번호</th>     <td>${product.id}</td></tr>
+            <tr><th>카테고리</th> <td>${product.category}</td></tr>
+            <tr><th>제품명</th>   <td>${product.name}</td></tr>
+            <tr><th>금액</th>     <td><strong><c:out value="${product.price}"/></strong> 원</td></tr>
+            <tr><th>제조사</th>   <td>${product.maker}</td></tr>
+            <tr><th>색상</th>     <td>${product.color}</td></tr>
+            <tr><th>사이즈</th>   <td>${product.size}</td></tr>
+            <tr><th>제품설명</th> <td style="white-space:pre-line;">${product.description}</td></tr>
+            <tr><th>조회수</th>   <td>${product.viewcount}</td></tr>
+            <tr><th>작성일</th>   <td>${fn:replace(product.regDate, 'T', ' ')}</td></tr>
+          </tbody>
+        </table>
 
-		<div>
-			<sec:authorize access="!isAuthenticated()">
-				<form id="guestForm" action="/Temporarily/Cart/add" method="post">
-					<input type="hidden" name="${_csrf.parameterName}"
-						value="${_csrf.token}"> <input type="hidden"
-						name="productid" value="${product.id}" /> <input type="hidden"
-						name="name" value="${product.name}" /> <select name="size">
-						<option value="xs">XS</option>
-						<option value="s">S</option>
-						<option value="m">M</option>
-						<option value="l">L</option>
-						<option value="xl">XL</option>
-					</select> <select name="color">
-						<option value="Red">Red</option>
-						<option value="Black">Black</option>
-						<option value="White">White</option>
-						<option value="Blue">Blue</option>
-					</select> <input type="hidden" name="price" value="${product.price}" /> <input
-						type="number" name="count" step="1" min="1" max="${product.count}"
-						value="1" placeholder="수량 선택" />
-					<button type="submit">카트에 담기</button>
-					<button id="buybutton2">구매하기</button>
-				</form>
-			</sec:authorize>
-		</div>
+        <!-- 비회원 영역 -->
+        <sec:authorize access="!isAuthenticated()">
+          <form id="guestForm" action="/Temporarily/Cart/add" method="post" class="section">
+            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+            <input type="hidden" name="productid" value="${product.id}">
+            <input type="hidden" name="name"      value="${product.name}">
+            <input type="hidden" name="price"     value="${product.price}">
 
-		<div>
-			<sec:authorize access="isAuthenticated()">
-				<form id="memberForm" action="/Cart/add" method="post">
-					<input type="hidden" name="${_csrf.parameterName}"
-						value="${_csrf.token}"> <input type="hidden"
-						name="productid" value="${product.id}" /> <input type="hidden"
-						name="name" value="${product.name}" /> <select name="size">
-						<option value="xs">XS</option>
-						<option value="s">S</option>
-						<option value="m">M</option>
-						<option value="l">L</option>
-						<option value="xl">XL</option>
-					</select> <select name="color">
-						<option value="Red">Red</option>
-						<option value="Black">Black</option>
-						<option value="White">White</option>
-						<option value="Blue">Blue</option>
-					</select> <input type="hidden" name="price" value="${product.price}" /> <input
-						type="number" name="count" step="1" min="1" max="${product.count}"
-						value="1" placeholder="수량 선택" />
-					<%-- 사이즈 수량 옵션 선택할 수 있도록 변경 예정 --%>
-					<button type="submit">카트에 담기</button>
-					<button id="buybutton">구매하기</button>
-				</form>
-			</sec:authorize>
-		</div>
+            <div class="form-row" style="margin-top:6px;">
+              <label>사이즈</label>
+              <select name="size">
+                <option value="xs">XS</option><option value="s">S</option>
+                <option value="m">M</option><option value="l">L</option><option value="xl">XL</option>
+              </select>
 
-		<div class="mt-3">
-			<h3>
-				평균 별점: <span id="averageStar">0.0</span>
-			</h3>
-		</div>
+              <label>색상</label>
+              <select name="color">
+                <option value="Red">Red</option><option value="Black">Black</option>
+                <option value="White">White</option><option value="Blue">Blue</option>
+              </select>
 
-		<section>
-			<div class="container mx-auto px-3">
-				<div class="text-lg">리뷰</div>
-				<div id="reviewsContainer"></div>
-			</div>
-		</section>
-		<sec:authorize access="isAuthenticated()">
-			<div class="mt-3">
-				<h3>리뷰 작성</h3>
-				<form action="/Review/add" method="post">
-					<input type="hidden" name="${_csrf.parameterName}"
-						value="${_csrf.token}"> <input type="hidden"
-						name="productId" value="${product.id}" />
-					<textarea name="body" placeholder="리뷰를 입력하세요"></textarea>
-					<input type="number" name="star" step="0.5" min="0" max="5"
-						placeholder="별점 (0.0 - 5.0)" />
-					<button id="addreview" type="submit">작성하기</button>
-				</form>
-			</div>
-		</sec:authorize>
+              <label>수량</label>
+              <input type="number" name="count" step="1" min="1" max="${product.count}" value="1" style="width:90px;">
+            </div>
 
-		<div id="emailPhoneModal" style="display: none;">
-			<div
-				style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border: 1px solid #ddd;">
-				<h3>이메일 및 전화번호 입력</h3>
-				<label for="email">이메일:</label> <input type="email" id="email"
-					name="email" required><br> <br> <label
-					for="phonenum">전화번호:</label> <input type="text" id="phonenum"
-					name="phonenum" required><br> <br>
-				<button id="submitEmailPhone">확인</button>
-				<button id="closeModal">취소</button>
-			</div>
-		</div>
+            <div class="actions">
+              <!-- 카트 담기: submit -->
+              <button id="guestAddToCartBtn" type="submit" class="btn ghost">카트에 담기</button>
+              <!-- 바로 구매: 모달 오픈 -->
+              <button id="guestBuyNowBtn" type="button" class="btn">바로 구매</button>
+            </div>
+          </form>
+        </sec:authorize>
 
-		<div class="mt-3 text-sm">
-			<button class="btn btn-active btn-sm"
-				onclick="location.href='/product/list';">목록으로</button>
+        <!-- 회원 영역 -->
+        <sec:authorize access="isAuthenticated()">
+          <form id="memberForm" action="/Cart/add" method="post" class="section">
+            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+            <input type="hidden" name="productid" value="${product.id}">
+            <input type="hidden" name="name"      value="${product.name}">
+            <input type="hidden" name="price"     value="${product.price}">
 
-			<sec:authorize access="isAuthenticated()">
-				<c:if test="${userRole == 'admin'}">
-					<c:if test="${adminClass == 1}">
-						<!-- 관리자이고 adminClass가 1일 때 -->
-						<form action="/product/modify" method="get">
-							<input type="hidden" name="${_csrf.parameterName}"
-								value="${_csrf.token}"> <input type="hidden" name="id"
-								value="${product.id}">
-							<button id="modifyreview" type="submit">수정</button>
-						</form>
-						<form action="/product/delete" method="post">
-							<input type="hidden" name="${_csrf.parameterName}"
-								value="${_csrf.token}"> <input type="hidden" name="id"
-								value="${product.id}">
-							<button id="deletereview"
-								onclick="if(confirm('정말 삭제하시겠습니까?') == false) return false;">삭제</button>
-						</form>
-					</c:if>
-				</c:if>
-			</sec:authorize>
+            <div class="form-row" style="margin-top:6px;">
+              <label>사이즈</label>
+              <select name="size">
+                <option value="xs">XS</option><option value="s">S</option>
+                <option value="m">M</option><option value="l">L</option><option value="xl">XL</option>
+              </select>
 
-			<c:if test="${userid eq product.writer}">
-				<form action="/product/modify" method="get">
-					<input type="hidden" name="${_csrf.parameterName}"
-						value="${_csrf.token}"> <input type="hidden" name="id"
-						value="${product.id}">
-					<button id="modifyreview" type="submit">수정</button>
-				</form>
-				<form action="/product/delete" method="post">
-					<input type="hidden" name="${_csrf.parameterName}"
-						value="${_csrf.token}"> <input type="hidden" name="id"
-						value="${product.id}">
-					<button id="deletereview"
-						onclick="if(confirm('정말 삭제하시겠습니까?') == false) return false;">삭제</button>
-				</form>
-			</c:if>
-		</div>
-	</div>
-	<%@ include file="../includes/foot1.jsp"%>
+              <label>색상</label>
+              <select name="color">
+                <option value="Red">Red</option><option value="Black">Black</option>
+                <option value="White">White</option><option value="Blue">Blue</option>
+              </select>
+
+              <label>수량</label>
+              <input type="number" name="count" step="1" min="1" max="${product.count}" value="1" style="width:90px;">
+            </div>
+
+            <div class="actions">
+              <button type="submit" class="btn ghost">카트에 담기</button>
+              <button id="buybutton" type="button" class="btn">바로 구매</button>
+            </div>
+          </form>
+        </sec:authorize>
+
+        <!-- 관리자/작성자 액션 (필요 시 유지) -->
+        <div class="section" style="display:flex; gap:8px; flex-wrap:wrap;">
+          <sec:authorize access="isAuthenticated()">
+            <c:if test="${userRole == 'admin' && adminClass == 1}">
+              <form action="/product/modify" method="get" style="display:inline;">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+                <input type="hidden" name="id" value="${product.id}">
+                <button type="submit" class="btn ghost">수정</button>
+              </form>
+              <form action="/product/delete" method="post" style="display:inline;">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+                <input type="hidden" name="id" value="${product.id}">
+                <button type="submit" class="btn ghost" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</button>
+              </form>
+            </c:if>
+          </sec:authorize>
+
+          <c:if test="${userid eq product.writer}">
+            <form action="/product/modify" method="get" style="display:inline;">
+              <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+              <input type="hidden" name="id" value="${product.id}">
+              <button type="submit" class="btn ghost">수정</button>
+            </form>
+            <form action="/product/delete" method="post" style="display:inline;">
+              <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+              <input type="hidden" name="id" value="${product.id}">
+              <button type="submit" class="btn ghost" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</button>
+            </form>
+          </c:if>
+
+          <button class="btn" onclick="location.href='/product/list'">목록으로</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 별점 & 리뷰 -->
+    <div class="section">
+      <h3>평균 별점: <span id="averageStar">0.0</span></h3>
+      <div class="note">리뷰는 <strong>구매자만</strong> 작성할 수 있으며, 마이페이지 &gt; 구매내역에서 작성해주세요.</div>
+    </div>
+
+    <div class="section">
+      <h3>리뷰</h3>
+      <div id="reviewsContainer" class="review-box"></div>
+    </div>
+
+    <!-- 비회원 구매 모달 (오버레이) -->
+    <div id="emailPhoneModalBackdrop" class="modal-backdrop">
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-body">
+          <h3 style="margin:0 0 12px;">비회원 구매 정보</h3>
+          <div class="field">
+            <label for="email">이메일</label>
+            <input type="email" id="email" name="email" required>
+          </div>
+          <div class="field">
+            <label for="phonenum">전화번호</label>
+            <input type="text" id="phonenum" name="phonenum" required>
+          </div>
+          <div class="modal-actions">
+            <button id="closeModal" type="button" class="btn ghost">취소</button>
+            <button id="submitEmailPhone" type="button" class="btn">확인</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%@ include file="../includes/foot1.jsp"%>
 </body>
 </html>
-

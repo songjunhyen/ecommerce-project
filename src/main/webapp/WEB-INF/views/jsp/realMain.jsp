@@ -1,370 +1,248 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-	pageEncoding="UTF-8"%>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c"  uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags"%>
+
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
 <meta charset="UTF-8">
 <title>Main</title>
-<link rel="stylesheet"
-	href="https://use.fontawesome.com/releases/v5.6.3/css/all.css"
-	crossorigin="anonymous">
-<%@ include file="includes/head1.jsp"%>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-#main {
-	
-}
+  html, body { height: 100%; margin:0; }
+  body { display: flex; flex-direction: column; min-height: 100vh; font-family: sans-serif; }
+  main { flex: 1; }
 
-#productContainer {
-	width: 80%;
-	margin: 30px auto;
-	text-align: center;
-}
+  /* 헤더 */
+  .top-bar { display:flex; justify-content:flex-end; align-items:center; background:#333; padding:10px 20px; }
+  .top-bar ul { display:flex; align-items:center; list-style:none; margin:0; padding:0; }
+  .top-bar li { margin-left:20px; }
+  .top-bar a { color:#fff; text-decoration:none; padding:6px 10px; display:flex; align-items:center; }
+  .top-bar a:hover { background:#ddd; color:#000; border-radius:5px; }
+  .logout-button { background:none; border:none; color:#fff; cursor:pointer; }
+  .logout-button:hover { background:#ddd; color:#000; border-radius:5px; }
+  .title { text-align:center; margin:20px 0; }
+  .title a { font-size:24px; color:#333; text-decoration:none; }
 
-#productTable {
-	width: 100%;
-	border-collapse: collapse;
-}
+  /* 슬라이드 */
+  .slideshow-container { position: relative; max-width: 1200px; margin: 0 auto; aspect-ratio: 21/7; overflow: hidden; border-radius: 12px; }
+  .mySlides { display:none; width:100%; height:100%; }
+  .main_slideImg { width: 100%; height: 100%; object-fit: cover; }
+  .prev, .next { cursor: pointer; position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); color:#fff; font-size:20px; border-radius:50%; }
+  .prev { left: 10px; } .next { right: 10px; }
+  .dot-container { text-align:center; margin:10px 0; }
+  .dot { cursor:pointer; height:10px; width:10px; margin:0 4px; background:#bbb; border-radius:50%; display:inline-block; }
+  .active, .dot:hover { background:#111; }
 
-#productTable th, #productTable td {
-	border: 1px solid #ddd;
-	padding: 8px;
-}
+  /* 상품 */
+  #productContainer { width:80%; margin:40px auto; text-align:center; }
+  #productTable { width:100%; border-collapse: collapse; }
+  #productTable th, #productTable td { border:1px solid #ddd; padding:8px; }
+  #productTable th { background:#f2f2f2; }
+  #productTable td button { background:none; border:none; color:blue; text-decoration:underline; cursor:pointer; }
 
-#productTable th {
-	background-color: #f2f2f2;
-	font-weight: bold;
-}
+  /* 페이징 */
+  #pagingContainer { text-align:center; margin:24px 0; }
+  #pagingContainer a, #pagingContainer span { min-width:30px; display:inline-block; margin:0 4px; padding:6px 10px; border:1px solid #ddd; border-radius:6px; text-decoration:none; }
+  #pagingContainer a:hover { background:#ddd; }
+  #pagingContainer span { background:#111; color:#fff; border-color:#111; }
 
-#productTable td button {
-	background: none;
-	border: none;
-	color: blue;
-	cursor: pointer;
-	text-decoration: underline;
-}
+  /* 공지 */
+  #articleContainer { width:80%; margin:40px auto; }
 
-#pagination {
-	margin-top: 20px;
-}
-
-#pagination a {
-	margin: 0 5px;
-	text-decoration: none;
-	color: blue;
-}
-
-#pagingContainer {
-	text-align: right;
-	margin-top: 20px;
-	margin: 0 2px;
-}
-
-#pagingContainer a, #pagingContainer span {
-	width: 20px;
-	display: inline-block;
-	margin: 0 4px;
-	padding: 3px 1px;
-	text-decoration: none;
-	color: black;
-	border: 1px solid #ddd;
-	border-radius: 5px;
-	text-align: center;
-}
-
-#pagingContainer #pagingbotton {
-	width: 35px;
-}
-
-#pagingContainer a:hover {
-	background-color: #ddd;
-}
-
-#pagingContainer span {
-	font-weight: bold;
-}
-
-.container, .content, .slider img, .header, .footer {
-    box-sizing: border-box;
-}
-img, input, button, .slider-container {
-    box-sizing: border-box;
-}
-
-/* 슬라이드 컨테이너 스타일 */
-.slideshow-container {
-    position: relative;
-    max-width: 90%;
-    margin: auto;
-    height: 100%;    
-}
-
-/* 슬라이드 이미지 스타일 */
-.main_slideImg {
-    height: 80%;   
-    width: 100%; 
-    object-fit: cover;
-    padding : 0 20%;
-}
-
-/* 이전/다음 버튼 스타일 */
-.prev, .next {
-    cursor: pointer;
-    position: absolute;
-    top: 50%;
-    width: 2%;
-    padding: 10px;
-    color: white;
-    font-weight: bold;
-    font-size: 20px;
-    transition: 0.6s ease;
-    border-radius: 0 3px 3px 0;
-    z-index: 100;
-    text-align: center;
-    transform: translateY(-50%);    
-    background-color: rgba(0, 0, 0, 0.3);
-}
-
-.next {
-    right: 0;
-    border-radius: 3px 0 0 3px;
-}
-
-.prev:hover, .next:hover {
-    background-color: rgba(0, 0, 0, 0.8);
-}
-
-/* 캡션 텍스트 스타일 */
-.text {
-    color: #f2f2f2;
-    font-size: 15px;
-    padding: 8px 12px;
-    position: absolute;
-    bottom: 8px;
-    width: 100%;
-    text-align: center;   
-}
-
-/* 슬라이드 인디케이터 스타일 */
-.dot-container {
-    text-align: center;    
-}
-
-.dot {
-    cursor: pointer;
-    height: 13px;
-    width: 13px;
-    margin: 0 2px;
-    background-color: #bbb;
-    border-radius: 50%;
-    display: inline-block;
-    transition: background-color 0.6s ease;
-}
-
-.active, .dot:hover {
-    background-color: #717171;
-}
-
-/* 페이드 애니메이션 */
-.fade2 {
-    animation-name: fade;
-    animation-duration: 1s;
-}
-
-@keyframes fade {
-    from { opacity: 0.4; }
-    to { opacity: 1; }
-}
-
-/* 작은 화면에서 텍스트 크기 조정 */
-@media only screen and (max-width: 300px) {
-    .prev, .next, .text {
-        font-size: 11px;
-    }
-}
+  /* 푸터 */
+  footer { background:#111; color:#ddd; text-align:center; padding:20px; margin-top:auto; }
+  footer ul { margin:0; padding:0; list-style:none; }
+  footer li { display:inline; margin:0 10px; }
+  footer a { color:#ddd; text-decoration:none; }
+  footer a:hover { text-decoration:underline; color:#fff; }
+  footer .copy { margin-top:10px; font-size:12px; color:#aaa; }
 </style>
 </head>
-<body id="main">
-	<br>
-<div class="slideshow-container">
-    <div class="mySlides fade2">
-        <img class="main_slideImg" src="/event/banner1.jpg" alt="Slide 1">
-        <div class="text">Event one</div>
-    </div>
-    <div class="mySlides fade2">
-        <img class="main_slideImg" src="/event/banner2.jpg" alt="Slide 2">
-        <div class="text">Event Two</div>
-    </div>
-    <div class="mySlides fade2">
-        <img class="main_slideImg" src="/event/banner3.jpg" alt="Slide 3">
-        <div class="text">Event Three</div>
-    </div>
-    <a class="prev" onclick="plusSlides(-1)">❮</a>
-    <a class="next" onclick="plusSlides(1)">❯</a>
+
+<body>
+
+<!-- 헤더 -->
+<nav class="top-bar">
+  <ul>
+    <li><a href="/">Home</a></li>
+    <sec:authorize access="isAuthenticated()">
+      <c:choose>
+        <c:when test="${userRole == 'user'}">
+          <li>
+            <form action="/Home/logout" method="post" style="display:inline;">
+              <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+              <input type="submit" value="Logout" class="logout-button" />
+            </form>
+          </li>
+          <li><a href="/user/Check">내 정보</a></li>
+          <li><a href="/Cart/List">Cart</a></li>
+        </c:when>
+        <c:when test="${userRole == 'admin'}">
+          <li>
+            <form action="/Home/logout" method="post" style="display:inline;">
+              <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+              <input type="submit" value="Logout" class="logout-button" />
+            </form>
+          </li>
+          <li><a href="/product/add">상품등록</a></li>
+          <c:if test="${adminClass == 1}">
+            <li><a href="/admin/Dashboard">관리자페이지</a></li>
+          </c:if>
+        </c:when>
+      </c:choose>
+    </sec:authorize>
+    <sec:authorize access="!isAuthenticated()">
+      <li><a href="/Home/login">Login</a></li>
+      <li><a href="/user/Signup">Join</a></li>
+      <li><a href="/temp/Cart">Cart</a></li>
+    </sec:authorize>
+    <li><a href="/product/list">Product</a></li>
+    <li><a href="#">Help</a></li>
+  </ul>
+</nav>
+
+<div class="title">
+  <a href="/Home/Main">E-커머스 프로젝트</a>
 </div>
 
-<div class="dot-container">
+<main>
+  <!-- 슬라이드 -->
+  <div class="slideshow-container">
+    <div class="mySlides"><img class="main_slideImg" src="${pageContext.request.contextPath}/event/banner1.jpg"></div>
+    <div class="mySlides"><img class="main_slideImg" src="${pageContext.request.contextPath}/event/banner2.jpg"></div>
+    <div class="mySlides"><img class="main_slideImg" src="${pageContext.request.contextPath}/event/banner3.jpg"></div>
+    <a class="prev" onclick="plusSlides(-1)">❮</a>
+    <a class="next" onclick="plusSlides(1)">❯</a>
+  </div>
+  <div class="dot-container">
     <span class="dot" onclick="currentSlide(1)"></span>
     <span class="dot" onclick="currentSlide(2)"></span>
     <span class="dot" onclick="currentSlide(3)"></span>
-</div>	
-	<br>
+  </div>
 
-	<div id="productContainer">
-		<table id="productTable">
-			<thead>
-				<tr>
-					<th></th>
-					<th>번호</th>
-					<th>카테고리</th>
-					<th>제품명</th>
-					<th>금액</th>
-					<th>조회수</th>
-					<th>작성일</th>
-				</tr>
-			</thead>
-			<tbody>
-				<c:forEach var="product" items="${products}">
-					<tr>
-						<td>
-							<h3>제품 이미지</h3> <c:if test="${not empty product.imageUrl}">
-								<c:set var="imageUrls"
-									value="${fn:split(product.imageUrl, ',')}" />
-								<c:if test="${fn:length(imageUrls) > 0}">
-									<img src="${imageUrls[0]}" alt="Product Image"
-										style="max-width: 300px;" />
-								</c:if>
-							</c:if> <c:if test="${empty product.imageUrl}">
-								<p>이미지가 없습니다.</p>
-							</c:if>
-						</td>
-						<td>${product.id}</td>
-						<td>${product.category}</td>
-						<td>
-							<form action="/product/Detail" method="post">
-								<input type="hidden" name="${_csrf.parameterName}"
-									value="${_csrf.token}"> <input type="hidden" name="id"
-									value="${product.id}">
-								<button type="submit">${product.name}</button>
-							</form>
-						</td>
-						<td>${product.price}</td>
-						<td>${product.viewcount}</td>
-						<td>${product.regDate}</td>
-					</tr>
-				</c:forEach>
-			</tbody>
-		</table>
-	</div>
+  <!-- 상품 -->
+  <div id="productContainer">
+    <h2>상품 목록</h2>
+    <c:choose>
+      <c:when test="${not empty products}">
+        <table id="productTable">
+          <thead>
+            <tr><th>이미지</th><th>번호</th><th>카테고리</th><th>제품명</th><th>금액</th><th>조회수</th><th>작성일</th></tr>
+          </thead>
+          <tbody>
+            <c:forEach var="product" items="${products}">
+              <tr>
+                <td>
+                  <c:choose>
+                    <c:when test="${not empty product.imageUrl}">
+                      <c:set var="imageUrls" value="${fn:split(product.imageUrl, ',')}" />
+                      <img src="${imageUrls[0]}" style="max-width:120px; max-height:120px; object-fit:cover;" />
+                    </c:when>
+                    <c:otherwise><span style="color:#888;">이미지 없음</span></c:otherwise>
+                  </c:choose>
+                </td>
+                <td>${product.id}</td>
+                <td>${product.category}</td>
+                <td>
+                  <form action="${pageContext.request.contextPath}/product/Detail" method="post">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+                    <input type="hidden" name="id" value="${product.id}">
+                    <button type="submit">${product.name}</button>
+                  </form>
+                </td>
+                <td>${product.price}</td>
+                <td>${product.viewcount}</td>
+                <td>${product.regDate}</td>
+              </tr>
+            </c:forEach>
+          </tbody>
+        </table>
+      </c:when>
+      <c:otherwise><p style="color:#777;">표시할 상품이 없습니다.</p></c:otherwise>
+    </c:choose>
+  </div>
 
-	<%-- 페이징 버튼 --%>
-	<div id="pagingContainer">
-		<c:if test="${currentPage != null && totalPages != null}">
-			<c:if test="${currentPage > 1}">
-				<a href="?page=${currentPage - 1}" id="pagingbotton">이전</a>
-			</c:if>
+  <!-- 페이징 -->
+  <div id="pagingContainer">
+    <c:if test="${currentPage != null && totalPages != null}">
+      <c:if test="${currentPage > 1}">
+        <a href="?page=${currentPage - 1}">이전</a>
+      </c:if>
+      <c:forEach var="i" begin="${startPage}" end="${endPage}">
+        <c:choose>
+          <c:when test="${i == currentPage}"><span>${i}</span></c:when>
+          <c:otherwise><a href="?page=${i}">${i}</a></c:otherwise>
+        </c:choose>
+      </c:forEach>
+      <c:if test="${currentPage < totalPages}">
+        <a href="?page=${currentPage + 1}">다음</a>
+      </c:if>
+    </c:if>
+  </div>
 
-			<c:forEach var="i" begin="${startPage}" end="${endPage}">
-				<c:choose>
-					<c:when test="${i == currentPage}">
-						<span>${i}</span>
-					</c:when>
-					<c:otherwise>
-						<a href="?page=${i}">${i}</a>
-					</c:otherwise>
-				</c:choose>
-			</c:forEach>
+  <!-- 공지 -->
+  <div id="articleContainer">
+    <h2>공지사항</h2>
+    <c:choose>
+      <c:when test="${not empty articles}">
+        <table id="articletable">
+          <thead><tr><th>번호</th><th>제목</th><th>조회수</th><th>작성일</th></tr></thead>
+          <tbody>
+            <c:forEach var="article" items="${articles}">
+              <tr>
+                <td>${article.id}</td>
+                <td>
+                  <form action="${pageContext.request.contextPath}/article/Detail" method="post">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+                    <input type="hidden" name="id" value="${article.id}">
+                    <button type="submit" style="background:none;border:none;color:blue;cursor:pointer;text-decoration:underline;">${article.name}</button>
+                  </form>
+                </td>
+                <td>${article.viewcount}</td>
+                <td>${article.regDate}</td>
+              </tr>
+            </c:forEach>
+          </tbody>
+        </table>
+      </c:when>
+      <c:otherwise><p style="color:#777;">등록된 공지사항이 없습니다.</p></c:otherwise>
+    </c:choose>
+  </div>
+</main>
 
-			<c:if test="${currentPage < totalPages}">
-				<a href="?page=${currentPage + 1}" id="pagingbotton">다음</a>
-			</c:if>
+<!-- 푸터 -->
+<footer>
+  <ul>
+    <li><a href="#">소개</a></li><li>|</li>
+    <li><a href="#">개인정보 처리 방침</a></li><li>|</li>
+    <li><a href="#">이용약관</a></li><li>|</li>
+    <li><a href="#">입점/제휴 문의</a></li><li>|</li>
+    <li><a href="#">고객지원</a></li>
+  </ul>
+  <div class="copy">© 2025 E-커머스 프로젝트 · 고객센터 02-0000-0000</div>
+</footer>
 
-			<br>
-
-			<p>현재 페이지 범위: ${startPage} - ${endPage} (총 페이지: ${totalPages})</p>
-		</c:if>
-	</div>
-
-	<br>
-	<div id="proContainer">인기상품 들어갈 공간</div>
-
-	<br>
-	<div id="articleContainer">
-		공지사항 등 들어갈 공간
-		<table id="articletable">
-			<thead id="article">
-				<tr>
-					<th></th>
-					<th>번호</th>
-					<th>제목</th>
-					<th>조회수</th>
-					<th>작성일</th>
-				</tr>
-			</thead>
-			<tbody>
-				<c:forEach var="article" items="${articles}">
-					<tr>
-						<td>${article.id}</td>
-						<td>${article.boardid}</td>
-						<td>
-							<form action="/article/Detail" method="post">
-								<input type="hidden" name="${_csrf.parameterName}"
-									value="${_csrf.token}"> <input type="hidden" name="id"
-									value="${article.id}">
-								<button type="submit">${article.name}</button>
-							</form>
-						</td>
-						<td>${article.viewcount}</td>
-						<td>${article.regDate}</td>
-					</tr>
-				</c:forEach>
-			</tbody>
-		</table>
-	</div>
-
-	<%@ include file="includes/foot1.jsp"%>
-
-	<script>
-
-	function autoSlide() {
-        plusSlides(1);
-        setTimeout(autoSlide, 4000); // 4초마다 이동 
-    }
-	
-		var slideIndex = 1;
-		showSlides(slideIndex);
-		function plusSlides(n) {
-			showSlides(slideIndex += n);
-		}
-		function currentSlide(n) {
-			showSlides(slideIndex = n);
-		}
-		function showSlides(n) {
-			var i;
-			var slides = document.getElementsByClassName("mySlides");
-			var dots = document.getElementsByClassName("dot");
-			if (n > slides.length) {
-				slideIndex = 1
-			}
-			if (n < 1) {
-				slideIndex = slides.length
-			}
-			for (i = 0; i < slides.length; i++) {
-				slides[i].style.display = "none";
-			}
-			for (i = 0; i < dots.length; i++) {
-				dots[i].className = dots[i].className.replace(" active", "");
-			}
-			slides[slideIndex - 1].style.display = "block";
-			dots[slideIndex - 1].className += " active";
-		}
-		
-		
-		showSlides(slideIndex);
-		autoSlide();
-		
-	</script>
+<script>
+  var slideIndex = 1;
+  function showSlides(n) {
+    var slides = document.getElementsByClassName("mySlides");
+    var dots   = document.getElementsByClassName("dot");
+    if (!slides.length) return;
+    if (n > slides.length) { slideIndex = 1; }
+    if (n < 1) { slideIndex = slides.length; }
+    for (var i = 0; i < slides.length; i++) { slides[i].style.display = "none"; }
+    for (var i = 0; i < dots.length; i++) { dots[i].className = dots[i].className.replace(" active", ""); }
+    slides[slideIndex-1].style.display = "block";
+    if (dots.length) dots[slideIndex-1].className += " active";
+  }
+  function plusSlides(n) { showSlides(slideIndex += n); }
+  function currentSlide(n) { showSlides(slideIndex = n); }
+  function autoSlide() { plusSlides(1); setTimeout(autoSlide, 4000); }
+  showSlides(slideIndex); autoSlide();
+</script>
 
 </body>
 </html>

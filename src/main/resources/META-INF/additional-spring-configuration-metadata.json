@@ -1,5 +1,17 @@
-{"properties": [{
-  "name": "spring.security.csrf.enabled",
-  "type": "java.lang.String",
-  "description": "A description for 'spring.security.csrf.enabled'"
-}]}
+{"properties": [
+  {
+    "name": "spring.security.csrf.enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.security.csrf.enabled'"
+  },
+  {
+    "name": "iamport.api.key",
+    "type": "java.lang.String",
+    "description": "A description for 'iamport.api.key'"
+  },
+  {
+    "name": "iamport.api.secret",
+    "type": "java.lang.String",
+    "description": "A description for 'iamport.api.secret'"
+  }
+]}
