@@ -39,7 +39,7 @@ Java Spring Boot 기반의 **간단한 E-commerce 웹 애플리케이션**입니
 ---
 
 ## 🎥 시연 영상
-👉 [YouTube Demo Link](https://youtu.be/예시링크)  
+👉 [YouTube Demo Link](https://youtu.be/jiHBs8xHPFk)  
 (상품 선택 → 장바구니 → 주문/결제 → 완료 흐름 시연)
 
 ---
