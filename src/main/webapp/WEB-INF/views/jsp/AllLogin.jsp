@@ -12,56 +12,102 @@
   <meta name="_csrf" content="${_csrf.token}">
   <meta name="_csrf_header" content="${_csrf.headerName}">
 
-  <!-- (선택) Google One Tap을 쓸 때만 유지. Spring OAuth2 링크만 쓸 거면 삭제해도 됩니다. -->
+  <!-- (선택) Google One Tap -->
   <meta name="google-signin-client_id" content="228463015999-drdvgd3jcm635f8u8j8hp7g0cp3ha988.apps.googleusercontent.com">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-  <%-- 헤더 공통 포함이 <head> 안에 있어야 한다면 여기에 둠 --%>
-  <%@ include file="includes/head1.jsp"%>
+<style>
+  /* ===== Login page scoped overrides ===== */
+  html, body { height:100%; }
+  body { margin:0; }
 
-  <style>
-    :root { --ink:#111; --muted:#777; --line:#e5e7eb; }
-    html, body { height:100%; }
-    body { margin:0; min-height:100vh; display:flex; flex-direction:column; font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", sans-serif; color:var(--ink); }
-    main { flex:1 0 auto; display:flex; align-items:center; justify-content:center; padding:24px 16px; }
+  /* 중앙 정렬 컨테이너 */
+  #loginPage {
+    flex:1 0 auto;
+    min-height:calc(100vh - 0px);
+    display:grid;
+    place-items:center;
+    padding:24px 16px;
+  }
 
-    .card {
-      width:100%; max-width:420px; border:1px solid var(--line); border-radius:12px; padding:24px; background:#fff;
-      box-shadow:0 6px 18px rgba(0,0,0,.04);
-    }
-    .card h1 { margin:0 0 16px; font-size:20px; }
-    .field { margin-bottom:14px; }
-    .field label { display:block; margin-bottom:6px; font-weight:600; }
-    .field input[type="text"], .field input[type="password"] {
-      width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; outline:none;
-    }
-    .field input:focus { border-color:#111; }
-    .error-message {
-      color:#d93025; font-size:12px; margin-top:6px; display:none;
-    }
-    .actions { margin-top:16px; display:flex; gap:8px; }
-    .btn {
-      flex:1; display:inline-block; text-align:center; padding:10px 12px; border-radius:8px; text-decoration:none; cursor:pointer; border:1px solid #111; background:#111; color:#fff;
-    }
-    .btn.secondary { background:#fff; color:#111; }
-    .oauth { margin-top:16px; display:flex; flex-direction:column; gap:8px; }
-    .oauth a { display:block; text-align:center; padding:10px 12px; border:1px solid #ddd; border-radius:8px; text-decoration:none; color:#111; background:#fff; }
-    .oauth a:hover { background:#111; color:#fff; border-color:#111; }
+  /* 카드 사이즈 업 + 여백 업 */
+  #loginPage .card {
+    width:100%;
+    max-width:560px;             /* 420 → 560 */
+    padding:28px;                /* 24 → 28 */
+    border:1px solid #e5e7eb;
+    border-radius:14px;          /* 12 → 14 */
+    background:#fff;
+    box-shadow:0 6px 18px rgba(0,0,0,.06);
+    box-sizing:border-box;
+    font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",sans-serif; color:#111;
+  }
 
-    footer { margin-top:auto; background:#111; color:#ddd; text-align:center; padding:16px; font-size:12px; }
-  </style>
+  #loginPage .card h1 {
+    margin:0 0 18px;
+    font-size:24px;              /* 20 → 24 */
+    font-weight:700;
+  }
+
+  #loginPage .field { margin-bottom:14px; }
+  #loginPage .field label { display:block; margin-bottom:6px; font-weight:600; }
+
+  #loginPage .field input[type="text"],
+  #loginPage .field input[type="password"] {
+    width:90%;
+    padding:12px 14px;           /* 10x12 → 12x14 */
+    border:1px solid #ddd;
+    border-radius:8px;
+    outline:none;
+    font-size:15px;              /* 14 → 15 */
+  }
+  #loginPage .field input:focus { border-color:#111; }
+
+  #loginPage .error-message { color:#d93025; font-size:12px; margin-top:6px; display:none; }
+
+  #loginPage .actions { margin-top:16px; display:flex; gap:8px; }
+  #loginPage .btn {
+    flex:1;
+    display:inline-block;
+    text-align:center;
+    padding:12px 14px;           /* 10x12 → 12x14 */
+    font-size:15px;
+    border-radius:10px;
+    text-decoration:none;
+    cursor:pointer;
+    border:1px solid #111;
+    background:#111;
+    color:#fff;
+  }
+  #loginPage .btn.secondary { background:#fff; color:#111; }
+
+  #loginPage .oauth { margin-top:16px; display:flex; flex-direction:column; gap:8px; }
+  #loginPage .oauth a {
+    display:block; text-align:center; padding:12px 14px;
+    border:1px solid #ddd; border-radius:8px; text-decoration:none; color:#111; background:#fff;
+    font-size:15px;
+  }
+  #loginPage .oauth a:hover { background:#111; color:#fff; border-color:#111; }
+
+  /* 큰 화면에서는 더 여유 */
+  @media (min-width: 1280px) {
+    #loginPage .card {
+      max-width:640px;           /* 데스크탑에서 640 */
+      padding:32px;
+    }
+  }
+</style>
+
 
   <script>
     $(function () {
       const csrfToken  = $('meta[name="_csrf"]').attr('content');
       const csrfHeader = $('meta[name="_csrf_header"]').attr('content');
 
-      // 폼 검증
       function showError(id, msg){ const $el = $('#'+id); $el.text(msg).show(); }
       function hideError(id){ const $el = $('#'+id); $el.text('').hide(); }
-
       function checkEmpty($input, errId, msg){
         const v = $.trim($input.val());
         if(!v){ showError(errId, msg); return false; }
@@ -75,12 +121,9 @@
         const okId = checkEmpty($('#userid'), 'useridError', '아이디를 입력해주세요.');
         const okPw = checkEmpty($('#pw'), 'pwError', '비밀번호를 입력해주세요.');
         if(!okId || !okPw){ e.preventDefault(); return; }
-
-        // 중복 제출 방지
         $('#submitBtn').prop('disabled', true).text('로그인 중...');
       });
 
-      // Ajax 요청이 있을 경우를 대비한 전역 CSRF 설정 (이 페이지는 기본적으로 폼 POST만 사용)
       $(document).ajaxSend(function (e, xhr) {
         if (csrfToken && csrfHeader) xhr.setRequestHeader(csrfHeader, csrfToken);
       });
@@ -88,8 +131,10 @@
   </script>
 </head>
 
-<body>
-  <main>
+<body class="layout-sticky"><%-- 공통 sticky 규칙을 쓰는 경우 --%>
+  <%@ include file="includes/head1.jsp"%>
+
+  <main id="loginPage">
     <div class="card" role="form" aria-labelledby="loginTitle">
       <h1 id="loginTitle">로그인</h1>
 
@@ -121,13 +166,6 @@
     </div>
   </main>
 
-  <%-- 푸터(선택: 공통 include 대신 여기서 바로 출력) --%>
-  <footer>
-    © 2025 E-커머스 프로젝트
-  </footer>
-
-  <%-- 푸터 공통을 쓰고 싶으면 아래 include로 대체하세요
   <%@ include file="includes/foot1.jsp"%>
-  --%>
 </body>
 </html>

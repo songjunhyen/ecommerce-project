@@ -134,4 +134,9 @@ public class ArticleService {
         public int getPageSize() { return pageSize; }
         public int getTotalPages() { return totalPages; }
     }
+
+    public List<Article> getRecentArticles(int limit) {
+        int safeLimit = (limit <= 0) ? 5 : Math.min(limit, 100);
+        return articleDao.list(0, safeLimit, null);
+    }
 }

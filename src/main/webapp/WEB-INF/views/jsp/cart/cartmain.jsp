@@ -158,15 +158,14 @@
 </style>
 </head>
 
-<body>
+<body class="layout-sticky">
   <%@ include file="../includes/head1.jsp"%>
-
+ <main id="page">
   <div id="cartPage">
     <div id="cartListContainer">
       <table>
         <thead>
           <tr>
-            <th>번호</th>
             <th>제품명</th>
             <th>수량</th>
             <th>금액</th>
@@ -179,7 +178,6 @@
         <tbody>
           <c:forEach var="cart" items="${carts}">
             <tr>
-              <td>${cart.id}</td>
               <td>${cart.productname}</td>
               <td>${cart.count}</td>
               <td>${cart.priceall}</td>
@@ -236,7 +234,7 @@
       <button id="buybutton" class="btn">구매하기</button>
     </div>
   </div>
-
+</main>
   <%@ include file="../includes/foot1.jsp"%>
 </body>
 </html>

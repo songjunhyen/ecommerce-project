@@ -7,8 +7,12 @@ CREATE DATABASE jsp_sb_project
   DEFAULT COLLATE utf8mb4_0900_ai_ci;
 USE jsp_sb_project;
 
--- 안전 모드
-SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+-- =========================
+-- 세션 인코딩 (한글 안전)
+-- =========================
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+SET collation_connection = utf8mb4_0900_ai_ci;
 SET time_zone = '+09:00';
 
 -- =========================
@@ -19,7 +23,7 @@ CREATE TABLE `user` (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     regDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     userid VARCHAR(60) NOT NULL UNIQUE,
-    userpw VARCHAR(255),                     -- 필요 시 NOT NULL 권장
+    userpw VARCHAR(255),
     `name` VARCHAR(60) NOT NULL,
     email VARCHAR(60) NOT NULL UNIQUE,
     `class` INT NOT NULL,
@@ -39,7 +43,7 @@ CREATE TABLE `admin` (
 
 CREATE TABLE product (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    writer VARCHAR(60) NOT NULL,                -- 작성자 표시용(문자 ID), FK는 선택
+    writer VARCHAR(60) NOT NULL,
     `name` VARCHAR(255) NOT NULL,
     price INT NOT NULL,
     `description` VARCHAR(255) NOT NULL,
@@ -109,15 +113,15 @@ CREATE TABLE cart (
 CREATE TABLE PurchaseRecords (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     order_number VARCHAR(255) NOT NULL UNIQUE,
-    userid VARCHAR(60),                 -- 회원 주문 시 사용자 ID (user.userid)
-    cartids VARCHAR(255),               -- 장바구니 id CSV
-    product_id INT UNSIGNED,            -- 단건 구매 시 product_id
-    productids VARCHAR(255),            -- 다건 구매 시 product id CSV
+    userid VARCHAR(60),
+    cartids VARCHAR(255),
+    product_id INT UNSIGNED,
+    productids VARCHAR(255),
     productname VARCHAR(255),
     quantity INT UNSIGNED NOT NULL,
     optionin VARCHAR(255),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(50) NOT NULL DEFAULT '배송 전',
+    status VARCHAR(50) NOT NULL DEFAULT _utf8mb4'배송 전' COLLATE utf8mb4_0900_ai_ci,
     CONSTRAINT fk_purchase_userid
       FOREIGN KEY (userid) REFERENCES `user`(userid)
       ON UPDATE CASCADE ON DELETE SET NULL,
@@ -137,7 +141,7 @@ CREATE TABLE GuestPurchaseRecords (
     quantity INT UNSIGNED NOT NULL,
     optionin VARCHAR(255),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(50) NOT NULL DEFAULT '배송 전',
+    status VARCHAR(50) NOT NULL DEFAULT _utf8mb4'배송 전' COLLATE utf8mb4_0900_ai_ci,
     guest_name VARCHAR(100) NOT NULL,
     guest_email VARCHAR(100) NOT NULL,
     guest_phone VARCHAR(20) NOT NULL,
@@ -162,42 +166,63 @@ CREATE TABLE PaymentRecords (
       ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE IF NOT EXISTS seller_shipments (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  order_number   VARCHAR(255) NOT NULL,
+  seller_id      VARCHAR(60)  NOT NULL,        -- order_items.seller_id
+  receiver_name  VARCHAR(100) NOT NULL,        -- 회원: user.name / 비회원: guest_name
+  phone          VARCHAR(30)  NULL,            -- 회원 전화 미보관이므로 NULL 가능
+  address        TEXT         NOT NULL,        -- 회원: user.address / 비회원: guest_address
+  total_quantity INT          NOT NULL,        -- 해당 판매자 품목 합계 수량
+  total_amount   INT          NOT NULL,        -- 합계 금액
+  payment_method VARCHAR(50)  NULL,            -- PaymentRecords.payment_method
+  payment_status VARCHAR(20)  NULL,            -- PaymentRecords.payment_status
+  status         VARCHAR(50)  NOT NULL DEFAULT '배송 전',  -- PurchaseRecords/GuestPurchaseRecords.status
+  tracking_no    VARCHAR(60)  NULL,            -- 판매자 입력(선택)
+  carrier        VARCHAR(40)  NULL,            -- 판매자 입력(선택)
+  shipped_at     DATETIME     NULL,
+  delivered_at   DATETIME     NULL,
+  created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_order_seller (order_number, seller_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- =========================
--- 기본/샘플 데이터
+-- 기본/샘플 데이터 (한글은 _utf8mb4 리터럴 사용)
 -- =========================
 
 -- product 샘플
 INSERT INTO product (writer, `name`, price, `description`, `count`, category, maker, color, size)
 VALUES
-    ('12',    '제품 A', 10000, '제품 A의 설명', 50, '카테고리 A', '제조사 X', 'Red',   'l'),
-    ('user2', '제품 B', 20000, '제품 B의 설명', 30, '카테고리 B', '제조사 Y', 'Blue',  'm'),
-    ('user3', '제품 C', 15000, '제품 C의 설명', 20, '카테고리 A', '제조사 Z', 'White', 's');
+    ('12',    _utf8mb4'제품 A', 10000, _utf8mb4'제품 A의 설명', 50, _utf8mb4'카테고리 A', _utf8mb4'제조사 X', 'Red',   'l'),
+    ('user2', _utf8mb4'제품 B', 20000, _utf8mb4'제품 B의 설명', 30, _utf8mb4'카테고리 B', _utf8mb4'제조사 Y', 'Blue',  'm'),
+    ('user3', _utf8mb4'제품 C', 15000, _utf8mb4'제품 C의 설명', 20, _utf8mb4'카테고리 A', _utf8mb4'제조사 Z', 'White', 's');
 
 -- user 샘플 (BCrypt 해시 예시: "pass1234")
 INSERT INTO `user` (userid, userpw, `name`, email, `class`, address)
 VALUES
-('user1', '$2a$10$P7Cq8TgZ2yE2m2k5q.x0iO2j1m3Z8a7YtTq2m1QqfPpQe0v1w5tpi', '유저원', 'user1@example.com', 0, '서울 강남구'),
-('user2', '$2a$10$Jf3bqz1mC0VQm2xgJ2XcpebJ0y5l3m9o2q7HnYg0oX6c1Vb3mJ5Ta', '유저투', 'user2@example.com', 0, '부산 해운대구');
+('user1', '$2a$10$P7Cq8TgZ2yE2m2k5q.x0iO2j1m3Z8a7YtTq2m1QqfPpQe0v1w5tpi', _utf8mb4'유저원', 'user1@example.com', 0, _utf8mb4'서울 강남구'),
+('user2', '$2a$10$Jf3bqz1mC0VQm2xgJ2XcpebJ0y5l3m9o2q7HnYg0oX6c1Vb3mJ5Ta', _utf8mb4'유저투', 'user2@example.com', 0, _utf8mb4'부산 해운대구');
 
--- admin 샘플 (이미 해시되어 있음)
+-- admin 샘플
 INSERT INTO `admin` (adminid, adminpw, `name`, email, adminclass)
-VALUES ('admin1', '$2a$10$8S3q4z6l9PpQe0v1w5tpiuOf2Xx7z6y3TtHpRzq2Qy1m0nBv9lZ9W', '관리자일', 'admin1@example.com', 1);
+VALUES ('admin1', '$2a$10$8S3q4z6l9PpQe0v1w5tpiuOf2Xx7z6y3TtHpRzq2Qy1m0nBv9lZ9W', _utf8mb4'관리자일', 'admin1@example.com', 1);
 
 -- review 샘플
 INSERT INTO review (productid, writer, reviewtext, star)
 VALUES
-    (1, 'user1', '제품 A 리뷰', 4.5),
-    (2, 'user2', '제품 B 리뷰', 3.5),
-    (1, 'user3', '제품 A 관련 추가 리뷰', 4.5);
+    (1, 'user1', _utf8mb4'제품 A 리뷰', 4.5),
+    (2, 'user2', _utf8mb4'제품 B 리뷰', 3.5),
+    (1, 'user3', _utf8mb4'제품 A 관련 추가 리뷰', 4.5);
 
--- cart 샘플 (FK 일치되도록 '12' → 'user1'로 수정)
+-- cart 샘플
 INSERT INTO cart (userid, productid, productname, color, size, `count`, price)
 VALUES
-    ('user1', 1, '제품 A', 'Red',   'l', 2, 10000),
-    ('user1', 2, '제품 B', 'Blue',  'm', 1, 20000),
-    ('user1', 3, '제품 C', 'White', 's', 3, 15000),
-    ('user1', 1, '제품 A', 'Red',   'l', 1, 10000),
-    ('user1', 3, '제품 C', 'White', 's', 2, 15000);
+    ('user1', 1, _utf8mb4'제품 A', 'Red',   'l', 2, 10000),
+    ('user1', 2, _utf8mb4'제품 B', 'Blue',  'm', 1, 20000),
+    ('user1', 3, _utf8mb4'제품 C', 'White', 's', 3, 15000),
+    ('user1', 1, _utf8mb4'제품 A', 'Red',   'l', 1, 10000),
+    ('user1', 3, _utf8mb4'제품 C', 'White', 's', 2, 15000);
 
 -- =========================
 -- 동작 확인용 주문/결제 테스트 데이터
@@ -206,15 +231,15 @@ VALUES
 -- (A) 회원 단건구매
 INSERT INTO PurchaseRecords (order_number, userid, cartids, product_id, productids, productname, quantity, optionin, status)
 VALUES
-('1234-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'user1', NULL, 1, NULL, '제품 A', 1, 'color=Red;size=l', '배송 전');
+('1234-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'user1', NULL, 1, NULL, _utf8mb4'제품 A', 1, 'color=Red;size=l', _utf8mb4'배송 전');
 
 INSERT INTO PaymentRecords (order_number, imp_uid, price, payment_method, payment_status)
 VALUES ('1234-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'imp_0001', 10000.00, 'CARD', 'pending');
 
--- (B) 회원 장바구니구매 (cart id 4,5 가정)
+-- (B) 회원 장바구니구매
 INSERT INTO PurchaseRecords (order_number, userid, cartids, product_id, productids, productname, quantity, optionin, status)
 VALUES
-('1234-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'user1', '4,5', NULL, '1,3', '제품 A 포함 2건', 3, 'color=Red/White;size=l/s', '배송 전');
+('1234-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'user1', '4,5', NULL, '1,3', _utf8mb4'제품 A 포함 2건', 3, 'color=Red/White;size=l/s', _utf8mb4'배송 전');
 
 INSERT INTO PaymentRecords (order_number, imp_uid, price, payment_method, payment_status)
 VALUES ('1234-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'imp_0002', 40000.00, 'VBANK', 'completed');
@@ -222,7 +247,7 @@ VALUES ('1234-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'imp_0002', 40000.00, 'VBANK', 
 -- (C) 비회원 단건구매
 INSERT INTO GuestPurchaseRecords (order_number, product_id, productids, productname, quantity, optionin, status, guest_name, guest_email, guest_phone, guest_address)
 VALUES
-('12345-ccccccccccccccccccccccccccccccc', 2, NULL, '제품 B', 1, 'color=Blue;size=m', '배송 전', '홍길동', 'guest1@example.com', '010-1111-2222', '서울시 중구 어딘가');
+('12345-ccccccccccccccccccccccccccccccc', 2, NULL, _utf8mb4'제품 B', 1, 'color=Blue;size=m', _utf8mb4'배송 전', _utf8mb4'홍길동', 'guest1@example.com', '010-1111-2222', _utf8mb4'서울시 중구 어딘가');
 
 INSERT INTO PaymentRecords (order_number, imp_uid, price, payment_method, payment_status)
 VALUES ('12345-ccccccccccccccccccccccccccccccc', 'imp_0003', 20000.00, 'CARD', 'pending');
@@ -230,7 +255,7 @@ VALUES ('12345-ccccccccccccccccccccccccccccccc', 'imp_0003', 20000.00, 'CARD', '
 -- (D) 비회원 다건구매
 INSERT INTO GuestPurchaseRecords (order_number, product_id, productids, productname, quantity, optionin, status, guest_name, guest_email, guest_phone, guest_address)
 VALUES
-('12345-ddddddddddddddddddddddddddddddd', NULL, '1,2,3', '제품 A 포함 3건', 4, 'color=Mix;size=Mix', '배송 전', '임꺽정', 'guest2@example.com', '010-3333-4444', '부산시 수영구 어디');
+('12345-ddddddddddddddddddddddddddddddd', NULL, '1,2,3', _utf8mb4'제품 A 포함 3건', 4, 'color=Mix;size=Mix', _utf8mb4'배송 전', _utf8mb4'임꺽정', 'guest2@example.com', '010-3333-4444', _utf8mb4'부산시 수영구 어디');
 
 INSERT INTO PaymentRecords (order_number, imp_uid, price, payment_method, payment_status)
 VALUES ('12345-ddddddddddddddddddddddddddddddd', 'imp_0004', 65000.00, 'CARD', 'completed');
@@ -238,34 +263,158 @@ VALUES ('12345-ddddddddddddddddddddddddddddddd', 'imp_0004', 65000.00, 'CARD', '
 -- (E) 결제 에러 케이스
 INSERT INTO PurchaseRecords (order_number, userid, cartids, product_id, productids, productname, quantity, optionin, status)
 VALUES
-('1234-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 'user2', NULL, 2, NULL, '제품 B', 1, 'color=Blue;size=m', '배송 전');
+('1234-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 'user2', NULL, 2, NULL, _utf8mb4'제품 B', 1, 'color=Blue;size=m', _utf8mb4'배송 전');
 
 INSERT INTO PaymentRecords (order_number, imp_uid, price, payment_method, payment_status)
 VALUES ('1234-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 'imp_0005', 20000.00, 'CARD', 'error');
 
--- =========================
--- 확인용 조회
--- =========================
-SELECT '--- USERS ---' AS section;
-SELECT id, userid, email, (userpw IS NOT NULL) AS has_pw FROM `user`;
 
-SELECT '--- ADMINS ---' AS section;
-SELECT id, adminid, email FROM `admin`;
 
-SELECT '--- PRODUCTS ---' AS section;
-SELECT id, `name`, price, `count` FROM product;
 
-SELECT '--- CART (user1) ---' AS section;
-SELECT * FROM cart WHERE userid='user1';
 
-SELECT '--- REVIEWS ---' AS section;
-SELECT * FROM review ORDER BY regDate DESC;
 
-SELECT '--- PURCHASE (member) ---' AS section;
-SELECT * FROM PurchaseRecords ORDER BY id DESC;
 
-SELECT '--- PURCHASE (guest) ---' AS section;
-SELECT * FROM GuestPurchaseRecords ORDER BY id DESC;
+====
 
-SELECT '--- PAYMENTS ---' AS section;
-SELECT * FROM PaymentRecords ORDER BY id DESC;
+// E-commerce schema (DBML; no Indexes; user -> users)
+
+// --------------------------
+// Tables
+// --------------------------
+
+Table users {
+  id int [pk, note: 'INT UNSIGNED AUTO_INCREMENT']
+  regDate datetime [not null, default: `CURRENT_TIMESTAMP`]
+  userid varchar(60) [not null, unique]
+  userpw varchar(255) [note: 'NULL 허용했으나 실무에선 NOT NULL 권장']
+  name varchar(60) [not null]
+  email varchar(60) [not null, unique]
+  class int [not null]
+  address varchar(60)
+}
+
+Table admin {
+  id int [pk, note: 'INT UNSIGNED AUTO_INCREMENT']
+  regDate datetime [not null, default: `CURRENT_TIMESTAMP`]
+  adminid varchar(60) [not null, unique]
+  adminpw varchar(255) [not null]
+  name varchar(60) [not null]
+  email varchar(60) [not null, unique]
+  adminclass int [not null]
+}
+
+Table product {
+  id int [pk, note: 'INT UNSIGNED AUTO_INCREMENT']
+  writer varchar(60) [not null, note: '표시용 문자열 ID(선택적으로 FK 가능)']
+  name varchar(255) [not null]
+  price int [not null]
+  description varchar(255) [not null]
+  imageUrl varchar(255)
+  count int [not null]
+  category varchar(255) [not null]
+  maker varchar(255) [not null]
+  color varchar(255) [not null]
+  size varchar(255) [not null]
+  additionalOptions varchar(255)
+  regDate datetime [not null, default: `CURRENT_TIMESTAMP`]
+  viewcount int [not null, default: 0, note: 'UNSIGNED']
+}
+
+Table article {
+  id int [pk, note: 'INT UNSIGNED AUTO_INCREMENT']
+  title varchar(255) [not null]
+  body text [not null]
+  writer_id varchar(60) [not null, note: 'users.userid 참조']
+  reg_date datetime [not null, default: `CURRENT_TIMESTAMP`]
+  update_date datetime [not null, default: `CURRENT_TIMESTAMP`]
+  viewcount int [not null, default: 0, note: 'UNSIGNED']
+}
+
+Table review {
+  id int [pk, note: 'INT UNSIGNED AUTO_INCREMENT']
+  productid int [not null]
+  writer varchar(60) [not null, note: 'users.userid 저장 권장']
+  regDate datetime [not null, default: `CURRENT_TIMESTAMP`]
+  reviewtext text [not null]
+  star double [not null, note: 'UNSIGNED']
+}
+
+Table cart {
+  id int [pk, note: 'INT UNSIGNED AUTO_INCREMENT']
+  userid varchar(60) [not null]
+  productid int [not null]
+  productname varchar(255) [not null]
+  color varchar(255) [not null]
+  size varchar(255) [not null]
+  count int [not null]
+  price int [not null]
+  priceall int [note: 'Generated: price * count (STORED)']
+}
+
+Table PurchaseRecords {
+  id int [pk, note: 'INT UNSIGNED AUTO_INCREMENT']
+  order_number varchar(255) [not null, unique]
+  userid varchar(60) [note: '회원 주문 시 users.userid']
+  cartids varchar(255) [note: '장바구니 id CSV']
+  product_id int [note: '단건구매 product.id']
+  productids varchar(255) [note: '다건 구매 id CSV']
+  productname varchar(255)
+  quantity int [not null]
+  optionin varchar(255)
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  status varchar(50) [not null, default: '배송 전']
+}
+
+Table GuestPurchaseRecords {
+  id int [pk, note: 'INT UNSIGNED AUTO_INCREMENT']
+  order_number varchar(255) [not null, unique]
+  product_id int
+  productids varchar(255)
+  productname varchar(255)
+  quantity int [not null]
+  optionin varchar(255)
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  status varchar(50) [not null, default: '배송 전']
+  guest_name varchar(100) [not null]
+  guest_email varchar(100) [not null]
+  guest_phone varchar(20) [not null]
+  guest_address text [not null]
+}
+
+Table PaymentRecords {
+  id int [pk, note: 'INT UNSIGNED AUTO_INCREMENT']
+  order_number varchar(255) [not null]
+  imp_uid varchar(255)
+  payment_date timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  price decimal(10,2) [not null]
+  payment_method varchar(50) [not null, default: 'UNKNOWN']
+  payment_status varchar(20) [default: 'pending']
+}
+
+// --------------------------
+// References (child > parent)
+// --------------------------
+
+// article.writer_id -> users.userid
+Ref: article.writer_id > users.userid [update: cascade, delete: no action]
+
+// review.productid -> product.id
+Ref: review.productid > product.id [update: cascade, delete: cascade]
+
+// cart.userid -> users.userid
+Ref: cart.userid > users.userid [update: cascade, delete: cascade]
+
+// cart.productid -> product.id
+Ref: cart.productid > product.id [update: cascade, delete: cascade]
+
+// PurchaseRecords.userid -> users.userid
+Ref: PurchaseRecords.userid > users.userid [update: cascade, delete: set null]
+
+// PurchaseRecords.product_id -> product.id
+Ref: PurchaseRecords.product_id > product.id [update: cascade, delete: set null]
+
+// GuestPurchaseRecords.product_id -> product.id
+Ref: GuestPurchaseRecords.product_id > product.id [update: cascade, delete: set null]
+
+// PaymentRecords.order_number -> PurchaseRecords.order_number
+Ref: PaymentRecords.order_number > PurchaseRecords.order_number [update: cascade, delete: cascade]

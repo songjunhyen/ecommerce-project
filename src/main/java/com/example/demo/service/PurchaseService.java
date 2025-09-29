@@ -98,6 +98,7 @@ public class PurchaseService {
 		return status == null ? null : status.toLowerCase(); // 비교 일원화
 	}
 
+
 	// ===================== 결제 상태 저장/갱신 =====================
 
 	@Transactional

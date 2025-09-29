@@ -5,6 +5,7 @@ import java.net.URLEncoder;
 import java.util.Collections;
 import java.util.List;
 
+import com.example.demo.service.ArticleService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -35,11 +36,13 @@ import jakarta.servlet.http.HttpSession;
 public class MainController {
 	private final AllService allService;
 	private final ProductService productService;
+	private final ArticleService articleService;
 	private static final Logger logger = LoggerFactory.getLogger(MainController.class);
 
-	MainController(ProductService productService, AllService allService) {
+	MainController(ProductService productService, AllService allService,ArticleService articleService) {
 		this.productService = productService;
 		this.allService = allService;
+		this.articleService = articleService;
 	}
 
 	@GetMapping("/")
@@ -77,6 +80,13 @@ public class MainController {
 		int[] pagination = calculatePagination(safePage, totalPages);
 		model.addAttribute("startPage", pagination[0]);
 		model.addAttribute("endPage", pagination[1]);
+
+		try {
+			model.addAttribute("articles", articleService.getRecentArticles(5));
+		} catch (Exception e) {
+			logger.warn("Failed to load recent articles for main page", e);
+			model.addAttribute("articles", Collections.emptyList());
+		}
 
 		return "realMain";
 	}
@@ -116,6 +126,13 @@ public class MainController {
 		int[] pagination = calculatePagination(safePage, totalPages);
 		model.addAttribute("startPage", pagination[0]);
 		model.addAttribute("endPage", pagination[1]);
+
+		try {
+			model.addAttribute("articles", articleService.getRecentArticles(5));
+		} catch (Exception e) {
+			logger.warn("Failed to load recent articles for main page", e);
+			model.addAttribute("articles", Collections.emptyList());
+		}
 
 		return "realMain";
 	}
@@ -216,4 +233,5 @@ public class MainController {
 		// SameSite 보강
 		response.addHeader("Set-Cookie", name + "=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax");
 	}
+
 }

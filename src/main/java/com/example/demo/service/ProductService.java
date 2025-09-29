@@ -47,4 +47,8 @@ public class ProductService {
 	public void updateViewCount(int id) {
 		productDao.updateViewCount(id);
 	}
+
+    public List<Product> searchProducts(String keyword) {
+		return productDao.getProductListSearch(keyword);
+    }
 }

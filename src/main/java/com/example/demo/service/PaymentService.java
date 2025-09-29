@@ -163,4 +163,8 @@ public class PaymentService {
                 && p2.compareTo(price) == 0
                 && p1.compareTo(p2) == 0;
     }
+
+    public PaymentInfo getPaymentInfoByOrderNumber(String orderNumber) {
+        return paymentDao.getPaymentInfoByOrderNumber(orderNumber);
+    }
 }

@@ -56,4 +56,18 @@ public interface PaymentDao {
         WHERE order_number = #{ordernumber}
         """)
 	PaymentInfo getPaymentDATA(@Param("ordernumber") String ordernumber);
+
+	@Select("""
+        SELECT
+            imp_uid         AS impUid,
+            order_number    AS orderNumber,
+            price           AS price,
+            payment_method  AS paymentMethod,
+            payment_status  AS paymentStatus,
+            payment_date    AS paymentDate
+        FROM PaymentRecords
+        WHERE order_number = #{orderNumber}
+        LIMIT 1
+        """)
+	PaymentInfo getPaymentInfoByOrderNumber(String orderNumber);
 }

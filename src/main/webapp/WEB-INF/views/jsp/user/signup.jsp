@@ -38,104 +38,108 @@
     .actions { margin-top:16px; display:flex; gap:8px; }
   </style>
 
-  <%@ include file="../includes/head1.jsp"%>
 
   <script>
     $(function(){
-      // CSRF
+      // ====== CSRF 공통 헤더 ======
       const CSRF_TOKEN  = $('meta[name="_csrf"]').attr('content');
       const CSRF_HEADER = $('meta[name="_csrf_header"]').attr('content');
       $(document).ajaxSend(function (e, xhr) {
         if (CSRF_TOKEN && CSRF_HEADER) xhr.setRequestHeader(CSRF_HEADER, CSRF_TOKEN);
       });
 
-      // 유틸
-      function showError(id, msg){ const $el = $('#'+id); $el.text(msg).show(); }
-      function hideError(id){ const $el = $('#'+id); $el.text('').hide(); }
+      // ====== 에러 표시 유틸 ======
+      function setError($el, msg, errorId){
+        if ($el && $el[0]) $el[0].setCustomValidity(msg || '');
+        if (errorId){
+          const $err = $('#'+errorId);
+          if (msg) $err.text(msg).show(); else $err.text('').hide();
+        }
+      }
 
-      // 검증(프런트 UX용)
-      function checkEmpty(id, errId, msg){
-        const v = $.trim($('#'+id).val());
-        if (!v){ showError(errId, msg); return false; }
-        hideError(errId); return true;
+      // ====== 필드별 즉시 검증 ======
+      // 아이디: 영/숫자 4~20 (공백/특수문자 X)
+      $('#userid').on('input blur', function(){
+        const $t=$(this); let v=$t.val();
+        if (/\s/.test(v)) { v=v.replace(/\s+/g,''); $t.val(v); } // 공백 제거
+        const ok=/^[A-Za-z0-9]{4,20}$/.test(v);
+        setError($t, ok?'':'아이디는 영문/숫자 4~20자만 가능합니다.', 'useridError');
+      });
+
+      // 비밀번호: 영/숫자 포함 8~64, 공백 X
+      $('#pw').on('input blur', function(){
+        const $t=$(this); let v=$t.val();
+        if (/\s/.test(v)) { v=v.replace(/\s+/g,''); $t.val(v); } // 공백 제거
+        const ok=/^(?=.*[A-Za-z])(?=.*\d)\S{8,64}$/.test(v);
+        setError($t, ok?'':'비밀번호는 영문/숫자 포함 8~64자, 공백 불가입니다.', 'pwError');
+      });
+
+      // 비밀번호 확인: 일치 확인
+      function checkPwMatch(){
+        const $a=$('#pw'), $b=$('#userpw2');
+        const same = $a.val() && $a.val() === $b.val();
+        setError($b, same?'':'비밀번호가 일치하지 않습니다.', 'pw2Error');
+        return same;
       }
-      function checkPassword(){
-        const v = $('#pw').val();
-        if(!v){ showError('pwError','비밀번호를 입력해주세요.'); return false; }
-        if(v.indexOf(' ')>=0){ showError('pwError','공백을 사용할 수 없습니다.'); return false; }
-        hideError('pwError'); return true;
-      }
-      function checkPasswordMatch(){
-        const a = $('#pw').val().trim();
-        const b = $('#userpw2').val().trim();
-        if(a!==b){ showError('pw2Error','비밀번호가 일치하지 않습니다.'); return false; }
-        hideError('pw2Error'); return true;
-      }
-      function checkUserid(){
-        const id = $('#userid').val();
-        const special = /[^a-zA-Z0-9]/;
-        if(!id){ showError('useridError','아이디를 입력해주세요.'); return false; }
-        if(id.indexOf(' ')>=0 || special.test(id)){ showError('useridError','아이디에는 공백/특수문자를 사용할 수 없습니다.'); return false; }
-        hideError('useridError'); return true;
-      }
-      function checkEmail(){
-        const v = $('#email').val().trim();
-        const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        if(!v){ showError('emailError','이메일을 입력해주세요.'); return false; }
-        if(!re.test(v)){ showError('emailError','유효한 이메일 주소가 아닙니다.'); return false; }
-        hideError('emailError'); return true;
-      }
+      $('#userpw2,#pw').on('input blur', checkPwMatch);
+
+      // 닉네임: 2~20자 (한/영/숫자/스페이스/_/-)
+      $('#name').on('input blur', function(){
+        const $t=$(this), v=$t.val().trim();
+        const ok=/^[가-힣A-Za-z0-9 _-]{2,20}$/.test(v);
+        setError($t, ok?'':'닉네임은 2~20자(한/영/숫자/_/-/스페이스)만 가능합니다.', 'nameError');
+      });
+
+      // 이메일: 간단 RFC 체크
+      $('#email').on('input blur', function(){
+        const $t=$(this), v=$t.val().trim();
+        const ok=/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(v);
+        setError($t, ok?'':'유효한 이메일 주소가 아닙니다.', 'emailError');
+      });
+
+      // 주소: 우편번호(5자리) + 도로명 + 상세주소 존재
       function checkAddress(){
-        const f = $('#frontaddress').val().trim();
-        const d = $('#detailAddress').val().trim();
-        if(!f || !d){ showError('addressError','주소와 상세주소를 입력해주세요.'); return false; }
-        hideError('addressError'); return true;
+        const p=$('#postcode').val().trim();
+        const f=$('#frontaddress').val().trim();
+        const d=$('#detailAddress').val().trim();
+        const ok = /^\d{5}$/.test(p) && f.length>0 && d.length>0;
+        $('#addressError').text(ok?'':'주소와 상세주소를 입력해주세요.').toggle(!ok);
+        return ok;
       }
+      $('#postcode,#frontaddress,#detailAddress').on('input blur', checkAddress);
 
-      // blur 이벤트
-      $('#userid').on('blur', checkUserid);
-      $('#pw').on('blur', checkPassword);
-      $('#userpw2').on('blur', checkPasswordMatch);
-      $('#name').on('blur', function(){ checkEmpty('name','nameError','닉네임을 입력해주세요.'); });
-      $('#email').on('blur', checkEmail);
-      $('#frontaddress, #detailAddress').on('blur', checkAddress);
-
-      // 통합 주소 생성
+      // 서버로 보낼 통합 주소 만들기
       function updateFullAddress(){
-        const p = $('#postcode').val().trim();
-        const f = $('#frontaddress').val().trim();
-        const d = $('#detailAddress').val().trim();
-        const full = [p, f, d].filter(Boolean).join(' ');
+        const full = [$('#postcode').val().trim(), $('#frontaddress').val().trim(), $('#detailAddress').val().trim()]
+                      .filter(Boolean).join(' ').slice(0,300);
         $('#address').val(full);
       }
 
-      // 폼 제출
+      // ====== 제출 시 최종 검증 ======
       $('#signupForm').on('submit', function(e){
-        const ok =
-          checkUserid() &&
-          checkPassword() &&
-          checkPasswordMatch() &&
-          checkEmpty('name','nameError','닉네임을 입력해주세요.') &&
-          checkEmail() &&
-          checkAddress();
-
-        if(!ok){ e.preventDefault(); return; }
-
-        // pw2는 서버로 보내지 않음(안전빵)
-        $('#userpw2').removeAttr('name'); // 실제로 name이 없지만 혹시 대비
+        const nativeOK = this.checkValidity();     // HTML5 속성 기반
+        const customOK = checkPwMatch() && checkAddress(); // 커스텀
+        if (!(nativeOK && customOK)) {
+          e.preventDefault();
+          this.reportValidity();
+          return;
+        }
+        // 비번확인 필드는 전송 불필요
+        $('#userpw2').removeAttr('name');
 
         updateFullAddress();
         $('#submitBtn').prop('disabled', true).text('처리 중...');
       });
 
-      // 아이디/이메일 중복확인
+      // ====== 중복확인 (기존 로직 유지) ======
       $('#checkUseridButton').on('click', function(){
-        if(!checkUserid()) return;
-        const userid = $('#userid').val().trim();
+        // 아이디 기본 검증 통과 시에만
+        const v=$('#userid').val();
+        if (!/^[A-Za-z0-9]{4,20}$/.test(v)) { $('#userid').focus(); return; }
         $.ajax({
           url: '<c:url value="/user/checkId.do"/>',
           type: 'POST',
-          data: { userid },
+          data: { userid: v.trim() },
           success: function(data){
             let $msg = $('#userid').next('.checkIdSpan');
             if (data.cnt > 0){
@@ -153,12 +157,12 @@
       });
 
       $('#checkEmailButton').on('click', function(){
-        if(!checkEmail()) return;
-        const email = $('#email').val().trim();
+        const v=$('#email').val().trim();
+        if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(v)) { $('#email').focus(); return; }
         $.ajax({
           url: '<c:url value="/user/checkEmail.do"/>',
           type: 'POST',
-          data: { email },
+          data: { email: v },
           success: function(data){
             let $msg = $('#email').next('.checkEmailSpan');
             if (data.cnt > 0){
@@ -175,7 +179,7 @@
         });
       });
 
-      // 우편번호
+      // ====== 우편번호 팝업 ======
       window.openPostcodePopup = function(){
         new daum.Postcode({
           oncomplete: function(data){
@@ -191,6 +195,7 @@
 </head>
 
 <body>
+  <%@ include file="../includes/head1.jsp"%>
   <div class="wrap">
     <h1>회원가입</h1>
 
@@ -206,8 +211,9 @@
           <input type="text" id="userid" name="userid"
                  placeholder="아이디를 입력해주세요"
                  autocomplete="username"
-                 required pattern="^[a-zA-Z0-9]{4,20}$"
-                 minlength="4" maxlength="20">
+                 required
+                 pattern="^[A-Za-z0-9]{4,20}$"
+                 minlength="4" maxlength="20" inputmode="latin-prose">
           <button id="checkUseridButton" type="button" class="btn small">중복확인</button>
         </div>
         <div id="useridError" class="error-message"></div>
@@ -220,7 +226,9 @@
         <input type="password" id="pw" name="pw"
                placeholder="비밀번호를 입력해주세요"
                autocomplete="new-password"
-               required minlength="8" maxlength="64">
+               required
+               pattern="^(?=.*[A-Za-z])(?=.*\d)\S{8,64}$"
+               minlength="8" maxlength="64">
         <div id="pwError" class="error-message"></div>
         <form:errors path="pw" cssClass="error-message"/>
       </div>
@@ -233,7 +241,7 @@
                autocomplete="new-password"
                required minlength="8" maxlength="64">
         <div id="pw2Error" class="error-message"></div>
-        <%-- form:errors(path="userpw2") 제거 --%>
+        <%-- form:errors(path="userpw2")는 전송하지 않으므로 불필요 --%>
       </div>
 
       <!-- 닉네임 -->
@@ -241,7 +249,9 @@
         <label for="name">닉네임</label>
         <input type="text" id="name" name="name"
                placeholder="닉네임을 입력해주세요"
-               required maxlength="30">
+               required
+               pattern="^[가-힣A-Za-z0-9 _-]{2,20}$"
+               minlength="2" maxlength="20">
         <div id="nameError" class="error-message"></div>
         <form:errors path="name" cssClass="error-message"/>
       </div>
@@ -264,7 +274,8 @@
       <div class="field">
         <label for="postcode">우편번호</label>
         <div class="row">
-          <input type="text" id="postcode" name="postcode" placeholder="우편번호" readonly required>
+          <input type="text" id="postcode" name="postcode" placeholder="우편번호"
+                 readonly required pattern="^\d{5}$" minlength="5" maxlength="5" inputmode="numeric">
           <button type="button" class="btn small" onclick="openPostcodePopup()">우편번호 찾기</button>
         </div>
         <form:errors path="postcode" cssClass="error-message"/>
@@ -272,13 +283,15 @@
 
       <div class="field">
         <label for="frontaddress">도로명 주소</label>
-        <input type="text" id="frontaddress" name="frontaddress" placeholder="도로명 주소" readonly required>
+        <input type="text" id="frontaddress" name="frontaddress" placeholder="도로명 주소"
+               readonly required maxlength="200">
         <form:errors path="frontaddress" cssClass="error-message"/>
       </div>
 
       <div class="field">
         <label for="detailAddress">상세주소</label>
-        <input type="text" id="detailAddress" name="detailAddress" placeholder="상세주소" required>
+        <input type="text" id="detailAddress" name="detailAddress" placeholder="상세주소"
+               required maxlength="100">
         <div id="addressError" class="error-message"></div>
         <div class="helper">우편번호 찾기 후 상세주소까지 입력해주세요.</div>
         <form:errors path="detailAddress" cssClass="error-message"/>

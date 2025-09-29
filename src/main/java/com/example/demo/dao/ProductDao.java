@@ -23,19 +23,21 @@ public interface ProductDao {
 
 	// 없는 컬럼 updateDate 제거 + 예약어 백틱 처리 + @Param 명시
 	@Update("""
-        UPDATE product SET
-            `name` = #{product.name},
-            price = #{product.price},
-            `description` = #{product.description},
-            `count` = #{product.count},
-            category = #{product.category},
-            maker = #{product.maker},
-            color = #{product.color},
-            size = #{product.size},
-            additionalOptions = #{product.additionalOptions}
-        WHERE id = #{productId}
-        """)
-	int modifyProduct(@Param("productId") int productId, @Param("product") Product product);
+    UPDATE product SET
+        `name` = #{p.name},
+        price = #{p.price},
+        `description` = #{p.description},
+        imageUrl = #{p.imageUrl,jdbcType=VARCHAR},
+        `count` = #{p.count},
+        category = #{p.category},
+        maker = #{p.maker},
+        color = #{p.color},
+        size = #{p.size},
+        additionalOptions = #{p.additionalOptions}
+    WHERE id = #{id}
+    """)
+	int modifyProduct(@Param("id") int productId, @Param("p") Product product);
+
 
 	@Delete("DELETE FROM product WHERE id = #{productId}")
 	int deleteProduct(@Param("productId") int productId);
@@ -68,4 +70,20 @@ public interface ProductDao {
 
 	@Select("SELECT COUNT(*) FROM product")
 	int countAll();
+
+	@Select("""
+    SELECT id, writer, `name`, price, `description`, imageUrl, `count`,
+           category, maker, color, size, additionalOptions, regDate, viewcount
+    FROM product
+    WHERE
+        `name`        LIKE CONCAT('%', #{kw}, '%')
+     OR `description` LIKE CONCAT('%', #{kw}, '%')
+     OR category     LIKE CONCAT('%', #{kw}, '%')
+     OR maker        LIKE CONCAT('%', #{kw}, '%')
+     OR color        LIKE CONCAT('%', #{kw}, '%')
+     OR size         LIKE CONCAT('%', #{kw}, '%')
+    ORDER BY id DESC
+    """)
+	List<Product> getProductListSearch(@Param("kw") String keyword);
+
 }

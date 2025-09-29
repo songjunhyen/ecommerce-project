@@ -15,6 +15,7 @@ import com.example.demo.util.SecurityUtils;
 import com.example.demo.vo.Member;
 
 import jakarta.servlet.http.HttpSession;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class UserController {
@@ -31,7 +32,9 @@ public class UserController {
 
 	@GetMapping("/user/Signup")
 	public String signUP(Model model) {
-		model.addAttribute("SignUpForm", new SignUpForm());
+		if (!model.containsAttribute("SignUpForm")) {
+			model.addAttribute("SignUpForm", new SignUpForm());
+		}
 		return "user/signup";
 	}
 
@@ -74,42 +77,62 @@ public class UserController {
 	}
 
 	@PostMapping("/user/signup")
-	public String signup(Model model, SignUpForm signupform) {
-		// 기본 검증
-		String userid = safeTrim(signupform.getUserid());
-		String pw = safeTrim(signupform.getPw());
-		String name = safeTrim(signupform.getName());
-		String email = safeTrim(signupform.getEmail());
-		String address = safeTrim(signupform.getAddress());
+	public String signup(@ModelAttribute("SignUpForm") SignUpForm form,
+						 RedirectAttributes ra) {
 
-		if (isBlank(userid) || isBlank(pw) || isBlank(name) || isBlank(email)) {
-			model.addAttribute("errorMessage", "필수 항목이 누락되었습니다.");
-			return "redirect:/user/Signup";
+		Map<String, String> errors = new HashMap<>();
+
+		// ▼ 트림
+		String userid = safeTrim(form.getUserid());
+		String pw     = safeTrim(form.getPw());
+		String name   = safeTrim(form.getName());
+		String email  = safeTrim(form.getEmail());
+		String addr   = safeTrim(form.getAddress());
+
+		// ▼ 수동 검증
+		if (isBlank(userid)) errors.put("userid", "아이디를 입력해주세요.");
+		else if (!userid.matches("^[A-Za-z0-9]{4,20}$"))
+			errors.put("userid", "아이디는 영문/숫자 4~20자만 가능합니다.");
+
+		if (isBlank(pw)) errors.put("pw", "비밀번호를 입력해주세요.");
+		else if (!pw.matches("^(?=.*[A-Za-z])(?=.*\\d)\\S{8,64}$"))
+			errors.put("pw", "비밀번호는 영문/숫자 포함 8~64자, 공백 불가입니다.");
+
+		if (isBlank(name)) errors.put("name", "닉네임을 입력해주세요.");
+		else if (!name.matches("^[가-힣A-Za-z0-9 _-]{2,20}$"))
+			errors.put("name", "닉네임은 2~20자(한/영/숫자/_/-/스페이스)만 가능합니다.");
+
+		if (isBlank(email)) errors.put("email", "이메일을 입력해주세요.");
+		else if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))
+			errors.put("email", "올바른 이메일 형식이 아닙니다.");
+
+		// ▼ 중복 체크
+		if (!errors.containsKey("userid") && "user".equals(userService.isuser(userid))) {
+			errors.put("userid", "이미 존재하는 아이디입니다.");
 		}
-		if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
-			model.addAttribute("errorMessage", "올바른 이메일 형식이 아닙니다.");
-			return "redirect:/user/Signup";
+		if (!errors.containsKey("email") && userService.getid3(email) != 0) {
+			errors.put("email", "이미 사용 중인 이메일입니다.");
 		}
-		if (pw.length() < 8 || pw.length() > 64) {
-			model.addAttribute("errorMessage", "비밀번호는 8~64자여야 합니다.");
+
+		// 에러 있으면 flash로 되돌리기 (비번은 보안상 복원 X)
+		if (!errors.isEmpty()) {
+			SignUpForm echo = new SignUpForm();
+			echo.setUserid(userid);
+			echo.setName(name);
+			echo.setEmail(email);
+			echo.setAddress(addr);
+
+			ra.addFlashAttribute("errors", errors);
+			ra.addFlashAttribute("SignUpForm", echo);
 			return "redirect:/user/Signup";
 		}
 
-		// 존재 여부(아이디/이메일) 체크
-		String isclass = userService.isuser(userid);
-		if ("user".equals(isclass)) {
-			model.addAttribute("errorMessage", "이미 존재하는 사용자입니다.");
-			return "redirect:/user/Signup";
-		}
-		if (userService.getid3(email) != 0) {
-			model.addAttribute("errorMessage", "이미 사용 중인 이메일입니다.");
-			return "redirect:/user/Signup";
-		}
-
-		Member newMember = new Member(userid, pw, name, email, address);
-		userService.signup(newMember); // 서비스에서 해시 처리 가정
+		// 성공 처리
+		Member newMember = new Member(userid, pw, name, email, addr);
+		userService.signup(newMember);
 		return "redirect:/Home/Main";
 	}
+
 
 	@PostMapping("/user/modify")
 	public String modify(HttpSession session,
@@ -139,7 +162,7 @@ public class UserController {
 	}
 
 	@GetMapping("/user/Signout") // jsp쪽에서 비번 체크하도록
-	public String Sigbout(HttpSession session, int id) {
+	public String Signout(HttpSession session, int id) {
 		// 로그인 사용자와 요청 id 일치 확인(권한 가드)
 		String current = SecurityUtils.getCurrentUserId();
 		if (current == null || "Anonymous".equals(current)) {

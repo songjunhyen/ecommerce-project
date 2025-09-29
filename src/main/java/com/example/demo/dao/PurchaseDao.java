@@ -1,10 +1,13 @@
 package com.example.demo.dao;
 
+import com.example.demo.vo.MyOrderRow;
 import org.apache.ibatis.annotations.*;
 
 import com.example.demo.vo.NonMemberPurchaseInfo;
 import com.example.demo.vo.PaymentInfo;
 import com.example.demo.vo.PurchaseInfo;
+
+import java.util.List;
 
 @Mapper
 public interface PurchaseDao {
@@ -16,9 +19,13 @@ public interface PurchaseDao {
 	void requestPurchase(PurchaseInfo pinfo);
 
 	@Insert("""
-        INSERT INTO GuestPurchaseRecords (order_number, product_id, productids, productname, quantity, optionin, created_at, guest_name, guest_email, guest_phone, guest_address)
-        VALUES (#{orderNumber}, #{productid}, #{productids}, #{productname}, #{quantity}, #{sizecolor}, #{requestDate}, #{guestName}, #{email}, #{phonenum}, #{guestAddress})
-    """)
+	  INSERT INTO GuestPurchaseRecords
+	  (order_number, product_id, productids, productname, quantity, optionin, created_at,
+	   guest_name, guest_email, guest_phone, guest_address)
+	  VALUES
+	  (#{orderNumber}, #{productid}, #{productids}, #{productname}, #{quantity}, #{sizecolor}, #{requestDate},
+	   #{guestName}, #{email}, #{phonenum}, #{guestAddress})
+	""")
 	void nonmemreqPurchase(NonMemberPurchaseInfo nPinfo);
 
 	@Select("""
@@ -50,6 +57,17 @@ public interface PurchaseDao {
         SELECT * FROM GuestPurchaseRecords WHERE order_number = #{orderNumber}
     """)
 	NonMemberPurchaseInfo getOrderInfoByNInfo(String orderNumber);
+
+	@Select("""
+		  SELECT * FROM GuestPurchaseRecords
+		  WHERE order_number = #{orderNumber}
+			AND guest_email  = #{email}
+			AND guest_phone  = #{phone}
+		  LIMIT 1
+		""")
+	NonMemberPurchaseInfo findGuestOrderForVerify(@Param("orderNumber") String orderNumber,
+												  @Param("email") String email,
+												  @Param("phone") String phone);
 
 	@Select("""
         SELECT payment_status FROM PaymentRecords WHERE order_number = #{orderNumber}
@@ -118,4 +136,19 @@ public interface PurchaseDao {
         DELETE FROM cart WHERE id = #{cartid}
     """)
 	void delcartid(int cartid);
+
+	@Select("""
+	  SELECT
+		p.order_number AS orderNumber,
+		p.productname  AS productname,
+		p.quantity     AS quantity,
+		pr.price       AS price,
+		p.status       AS status,
+		p.created_at   AS createdAt
+	  FROM PurchaseRecords p
+	  LEFT JOIN PaymentRecords pr ON pr.order_number = p.order_number
+	  WHERE p.userid = #{userid}
+	  ORDER BY p.created_at DESC
+	""")
+	List<MyOrderRow> findMemberOrdersWithPrice(@Param("userid") String userid);
 }
